@@ -2,6 +2,7 @@
   "name": "@hanazuki/release-gems",
   "private": true,
   "version": "0.0.0",
+  "license": "MIT",
   "scripts": {
     "build": "rollup -c rollup.config.ts --configPlugin rollup-plugin-typescript2",
     "lint": "biome check .",
@@ -23,9 +24,11 @@
     "@rollup/plugin-commonjs": "^26.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-terser": "^1.0.0",
     "@types/js-yaml": "^4.0.0",
     "@types/node": "^22.0.0",
     "rollup": "^4.0.0",
+    "rollup-plugin-license": "^3.7.0",
     "rollup-plugin-typescript2": "^0.36.0",
     "typescript": "^5.0.0",
     "vitest": "^2.0.0"
