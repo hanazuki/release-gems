@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- The `build` action requires Ruby to be available on the runner (e.g. via [ruby/setup-ruby@v1](https://github.com/ruby/setup-ruby)).
+- The `build` action requires Ruby to be available on the runner (e.g. via [ruby/setup-ruby@v1](https://github.com/ruby/setup-ruby)). The three latest major versions of Ruby are tested.
 - For publishing to RubyGems.org: create an environment (say `rubygems.org`) in your GitHub repository, and configure the environment as a [trusted publisher](https://docs.rubygems.org/trusted-publishers/) on RubyGems.org.
 - The release environment and the release tags should be [protected](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment#deployment-protection-rules) to prevent unauthorized releases.
 

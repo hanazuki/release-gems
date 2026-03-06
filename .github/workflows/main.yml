@@ -24,12 +24,18 @@ jobs:
           fi
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ["3.3", "3.4", "4.0"]  # Three latest major versions
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v6
         with:
           node-version-file: package.json
       - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
       - uses: pnpm/action-setup@v4
       - run: pnpm install
       - run: pnpm test
