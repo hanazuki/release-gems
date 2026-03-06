@@ -10,28 +10,28 @@ const GEMSPEC_PATH = path.resolve(__dirname, "../../fixtures/test_gem.gemspec");
 const RUBY = "ruby";
 
 describe("loadGemspec", () => {
-  it("returns name and version from gemspec", () => {
-    const info = loadGemspec(RUBY, GEMSPEC_PATH);
+  it("returns name and version from gemspec", async () => {
+    const info = await loadGemspec(RUBY, GEMSPEC_PATH);
     expect(info.name).toBe("test_gem");
     expect(info.version).toBe("0.1.0");
     expect(info.platform).toBe("ruby");
     expect(info.metadata.allowed_push_host).toBe("https://gems.example.com");
   });
 
-  it("throws for a nonexistent gemspec", () => {
-    expect(() =>
+  it("throws for a nonexistent gemspec", async () => {
+    await expect(
       loadGemspec(RUBY, path.join(os.tmpdir(), "nonexistent.gemspec")),
-    ).toThrow();
+    ).rejects.toThrow();
   });
 });
 
 describe("buildGem", () => {
-  it("builds the gem into a temporary directory", () => {
+  it("builds the gem into a temporary directory", async () => {
     const tmpDir = fs.mkdtempSync(
       path.join(os.tmpdir(), `release-gems-gem-test-${process.pid}-`),
     );
     try {
-      const result = buildGem(RUBY, GEMSPEC_PATH, tmpDir);
+      const result = await buildGem(RUBY, GEMSPEC_PATH, tmpDir);
       expect(result.path).toBe(path.join(tmpDir, "test_gem-0.1.0.gem"));
       expect(fs.existsSync(result.path)).toBe(true);
     } finally {
@@ -39,14 +39,14 @@ describe("buildGem", () => {
     }
   });
 
-  it("throws for a nonexistent gemspec", () => {
+  it("throws for a nonexistent gemspec", async () => {
     const tmpDir = fs.mkdtempSync(
       path.join(os.tmpdir(), `release-gems-gem-test-${process.pid}-`),
     );
     try {
-      expect(() =>
+      await expect(
         buildGem(RUBY, path.join(os.tmpdir(), "nonexistent.gemspec"), tmpDir),
-      ).toThrow();
+      ).rejects.toThrow();
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

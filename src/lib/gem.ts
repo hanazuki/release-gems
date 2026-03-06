@@ -10,7 +10,10 @@ const GemspecSchema = z.object({
 });
 export type Gemspec = z.infer<typeof GemspecSchema>;
 
-export function loadGemspec(ruby: string, gemspecPath: string): Gemspec {
+export async function loadGemspec(
+  ruby: string,
+  gemspecPath: string,
+): Promise<Gemspec> {
   const script = `\
 require 'rubygems'
 spec = Gem::Specification.load(ARGV[0]) or fail "Cannot load gemspec: #{ARGV[0]}"
@@ -24,7 +27,7 @@ return {
 
   const absGemspecPath = path.resolve(gemspecPath);
   try {
-    return runRuby({
+    return await runRuby({
       ruby,
       cwd: path.dirname(absGemspecPath),
       script,
@@ -41,11 +44,11 @@ const GemBuildResultSchema = z.object({
 });
 export type GemBuildResult = z.infer<typeof GemBuildResultSchema>;
 
-export function buildGem(
+export async function buildGem(
   ruby: string,
   gemspecPath: string,
   outDir: string,
-): GemBuildResult {
+): Promise<GemBuildResult> {
   const script = `\
 require 'rubygems'
 require 'rubygems/package'
@@ -57,7 +60,7 @@ return {path: gem_path}
 
   const absGemspecPath = path.resolve(gemspecPath);
   try {
-    return runRuby({
+    return await runRuby({
       ruby,
       cwd: path.dirname(absGemspecPath),
       script,

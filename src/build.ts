@@ -169,7 +169,7 @@ async function run(): Promise<void> {
   const config = await loadConfigLocal(workspace);
   const tagInfo = parseTag(github.context.ref);
 
-  const candidates = resolveTargets(workspace, config, ruby);
+  const candidates = await resolveTargets(workspace, config, ruby);
   const targets = selectTargets(candidates, tagInfo);
   checkAllowedPushHosts(targets, config.registries);
   const results = await Array.fromAsync(

@@ -32,22 +32,22 @@ function findGemspec(workspace: string, gemConfig: GemConfig): string {
   return path.join(dir, gemspecs[0]);
 }
 
-export function resolveTargets(
+export async function resolveTargets(
   workspace: string,
   config: Config,
   ruby: string,
-): Target[] {
+): Promise<Target[]> {
   // Explicit empty array means "build nothing"; absent key or null means auto-detect.
   const gemConfigs: GemConfig[] =
     config.gems !== undefined ? config.gems : [{}];
 
-  const candidates: Target[] = [];
-  for (const gemConfig of gemConfigs) {
-    const gemspecPath = findGemspec(workspace, gemConfig);
-    const gemspec = loadGemspec(ruby, gemspecPath);
-    candidates.push({ gemConfig, gemspecPath, gemspec });
-  }
-  return candidates;
+  return Promise.all(
+    gemConfigs.map(async (gemConfig) => {
+      const gemspecPath = findGemspec(workspace, gemConfig);
+      const gemspec = await loadGemspec(ruby, gemspecPath);
+      return { gemConfig, gemspecPath, gemspec };
+    }),
+  );
 }
 
 export function selectTargets(

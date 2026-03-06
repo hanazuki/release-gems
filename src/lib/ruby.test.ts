@@ -7,8 +7,8 @@ const RUBY = "ruby";
 const CWD = os.tmpdir();
 
 describe("runRuby", () => {
-  it("chdirs before running Ruby code", () => {
-    const result = runRuby({
+  it("chdirs before running Ruby code", async () => {
+    const result = await runRuby({
       ruby: RUBY,
       cwd: CWD,
       args: [],
@@ -18,8 +18,8 @@ describe("runRuby", () => {
     expect(result).toEqual({ cwd: CWD });
   });
 
-  it("returns parsed data on success", () => {
-    const result = runRuby({
+  it("returns parsed data on success", async () => {
+    const result = await runRuby({
       ruby: RUBY,
       cwd: CWD,
       args: ["hello", "42"],
@@ -29,8 +29,8 @@ describe("runRuby", () => {
     expect(result).toEqual({ name: "hello", count: 42 });
   });
 
-  it("throws when the script raises an exception", () => {
-    expect(() =>
+  it("throws when the script raises an exception", async () => {
+    await expect(
       runRuby({
         ruby: RUBY,
         cwd: CWD,
@@ -38,6 +38,6 @@ describe("runRuby", () => {
         script: `raise "something went wrong"`,
         schema: z.object({}),
       }),
-    ).toThrow("RuntimeError: something went wrong");
+    ).rejects.toThrow("RuntimeError: something went wrong");
   });
 });
