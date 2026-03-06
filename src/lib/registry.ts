@@ -86,17 +86,12 @@ export async function pushToRegistry(
 
   body.append(
     "attestations",
-    new Blob(
-      [
-        JSON.stringify(
-          await Promise.all(
-            attestationPaths.map(async (path) =>
-              JSON.parse(await fs.promises.readFile(path, "utf8")),
-            ),
-          ),
+    JSON.stringify(
+      await Promise.all(
+        attestationPaths.map(async (path) =>
+          JSON.parse(await fs.promises.readFile(path, "utf8")),
         ),
-      ],
-      { type: "application/json" },
+      ),
     ),
   );
 

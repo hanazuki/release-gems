@@ -239,12 +239,8 @@ describe("pushToRegistry", () => {
 
     const [, options] = mockFetch.mock.lastCall!;
     const body = options?.body as FormData;
-    const attestationsField = body.get("attestations") as Blob;
-    expect(attestationsField).toBeInstanceOf(Blob);
-    expect(attestationsField.type).toBe("application/json");
-    expect(await attestationsField.text()).toBe(
-      JSON.stringify([ATTESTATION_BUNDLE]),
-    );
+    const attestationsField = body.get("attestations")! as string;
+    expect(JSON.parse(attestationsField)).toStrictEqual([ATTESTATION_BUNDLE]);
   });
 
   it("resolves on HTTP 200", async () => {
