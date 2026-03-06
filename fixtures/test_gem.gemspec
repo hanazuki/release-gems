@@ -4,4 +4,5 @@ Gem::Specification.new do |s|
   s.summary = "A minimal gem for testing release-gems"
   s.authors = ["Rubeus Hagrid"]
   s.files   = []
+  s.metadata['allowed_push_host'] = 'https://gems.example.com'
 end

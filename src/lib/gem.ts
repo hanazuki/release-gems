@@ -6,6 +6,7 @@ const GemspecSchema = z.object({
   name: z.string(),
   version: z.string(),
   platform: z.string(),
+  metadata: z.record(z.string()),
 });
 export type Gemspec = z.infer<typeof GemspecSchema>;
 
@@ -13,7 +14,12 @@ export function loadGemspec(ruby: string, gemspecPath: string): Gemspec {
   const script = `\
 require 'rubygems'
 spec = Gem::Specification.load(ARGV[0]) or fail "Cannot load gemspec: #{ARGV[0]}"
-return {name: spec.name, version: spec.version.to_s, platform: spec.platform}
+return {
+  name: spec.name,
+  version: spec.version.to_s,
+  platform: spec.platform,
+  metadata: spec.respond_to?(:metadata) ? spec.metadata : {},
+}
 `;
 
   const absGemspecPath = path.resolve(gemspecPath);

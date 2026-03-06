@@ -15,6 +15,7 @@ describe("loadGemspec", () => {
     expect(info.name).toBe("test_gem");
     expect(info.version).toBe("0.1.0");
     expect(info.platform).toBe("ruby");
+    expect(info.metadata.allowed_push_host).toBe("https://gems.example.com");
   });
 
   it("throws for a nonexistent gemspec", () => {

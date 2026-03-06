@@ -34,7 +34,12 @@ describe("uploadGemArtifact", () => {
 
   it("calls uploadArtifact with the correct artifact name", async () => {
     await uploadGemArtifact({
-      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
+      gemspec: {
+        name: "my-gem",
+        version: "1.0.0",
+        platform: "ruby",
+        metadata: {},
+      },
       directory: tempDir,
       index: {
         gem: { filename: "my-gem-1.0.0.gem" },
@@ -48,7 +53,12 @@ describe("uploadGemArtifact", () => {
 
   it("calls uploadArtifact with index, gem, and attestation files", async () => {
     await uploadGemArtifact({
-      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
+      gemspec: {
+        name: "my-gem",
+        version: "1.0.0",
+        platform: "ruby",
+        metadata: {},
+      },
       directory: tempDir,
       index: {
         gem: { filename: "my-gem-1.0.0.gem" },
@@ -71,7 +81,12 @@ describe("uploadGemArtifact", () => {
 
   it("uses directory as rootDirectory", async () => {
     await uploadGemArtifact({
-      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
+      gemspec: {
+        name: "my-gem",
+        version: "1.0.0",
+        platform: "ruby",
+        metadata: {},
+      },
       directory: tempDir,
       index: { gem: { filename: "my-gem-1.0.0.gem" }, attestations: [] },
     });
@@ -82,7 +97,12 @@ describe("uploadGemArtifact", () => {
 
   it("passes retentionDays in options when provided", async () => {
     await uploadGemArtifact({
-      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
+      gemspec: {
+        name: "my-gem",
+        version: "1.0.0",
+        platform: "ruby",
+        metadata: {},
+      },
       directory: tempDir,
       index: { gem: { filename: "my-gem-1.0.0.gem" }, attestations: [] },
       retentionDays: 30,
@@ -94,7 +114,12 @@ describe("uploadGemArtifact", () => {
 
   it("uses 0 as retentionDays when not provided", async () => {
     await uploadGemArtifact({
-      gemspec: { name: "my-gem", version: "1.0.0", platform: "ruby" },
+      gemspec: {
+        name: "my-gem",
+        version: "1.0.0",
+        platform: "ruby",
+        metadata: {},
+      },
       directory: tempDir,
       index: { gem: { filename: "my-gem-1.0.0.gem" }, attestations: [] },
     });
@@ -105,7 +130,12 @@ describe("uploadGemArtifact", () => {
 
   it("constructs artifact name as release-gems-{gemspec.name}-{gemspec.platform}", async () => {
     await uploadGemArtifact({
-      gemspec: { name: "awesome-lib", version: "2.0.0", platform: "java" },
+      gemspec: {
+        name: "awesome-lib",
+        version: "2.0.0",
+        platform: "java",
+        metadata: {},
+      },
       directory: tempDir,
       index: { gem: { filename: "awesome-lib-2.0.0.gem" }, attestations: [] },
     });
