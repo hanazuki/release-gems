@@ -4,6 +4,7 @@ release-gems is a GitHub Action that automates the release workflow for Ruby gem
 
 ## Prerequisites
 
+- The `build` action requires Ruby to be available on the runner (e.g. via [ruby/setup-ruby@v1](https://github.com/ruby/setup-ruby)).
 - For publishing to RubyGems.org, configure your gem as a [trusted publisher](https://docs.rubygems.org/trusted-publishers/) on RubyGems.org, and create a GitHub Actions environment named `rubygems`.
 
 ## Quick Start
@@ -25,6 +26,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ruby
     - uses: hanazuki/release-gems/build@HASH
 
   publish:
