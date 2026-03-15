@@ -78,6 +78,24 @@ registries:           # defaults to rubygems.org if omitted
 
 All fields are optional. The config file itself is optional for single-gem repositories.
 
+## Action Inputs
+
+### `build`
+
+| Input | Default | Description |
+|---|---|---|
+| `github-token` | `secrets.GITHUB_TOKEN` | Token for uploading artifacts and creating attestations. |
+| `retention-days` | GitHub account default | Artifact retention period in days. |
+| `ruby` | `ruby` | Path or name of the Ruby binary. |
+| `sbom` | (none) | Path to an SBOM file to attach. If omitted, no SBOM attestation is created. Supported formats: CycloneDX JSON, SPDX 2.x JSON, SPDX 3.x JSON-LD. |
+| `sbom-predicate-type` | (auto-detected) | in-toto predicate type URI for the SBOM attestation. Provide this for formats that cannot be auto-detected. |
+
+### `publish`
+
+| Input | Default | Description |
+|---|---|---|
+| `github-token` | `secrets.GITHUB_TOKEN` | Token for downloading artifacts and managing GitHub releases. |
+
 ## Monorepo with per-gem versioning
 
 For repositories with multiple gems, list each gem under `gems:`. Each gem can be released independently using per-gem tags:
@@ -97,20 +115,30 @@ on:
     tags: ["*/v*"]
 ```
 
-## Action Inputs
+## Publishing to a private gem server
 
-### `build`
+To push to a registry other than RubyGems.org, add it under `registries:` in `.github/release-gems.yml`:
 
-| Input | Default | Description |
-|---|---|---|
-| `github-token` | `secrets.GITHUB_TOKEN` | Token for uploading artifacts and creating attestations. |
-| `retention-days` | GitHub account default | Artifact retention period in days. |
-| `ruby` | `ruby` | Path or name of the Ruby binary. |
-| `sbom` | (none) | Path to an SBOM file to attach. If omitted, no SBOM attestation is created. Supported formats: CycloneDX JSON, SPDX 2.x JSON, SPDX 3.x JSON-LD. |
-| `sbom-predicate-type` | (auto-detected) | in-toto predicate type URI for the SBOM attestation. Provide this for formats that cannot be auto-detected. |
+```yaml
+registries:
+- host: https://gems.example.com
+```
 
-### `publish`
+The action reads the API key from a YAML file at `~/.gem/credentials` on the runner, using the `host` URL as the lookup key. Write the credentials file in your publish job before the release-gems step:
 
-| Input | Default | Description |
-|---|---|---|
-| `github-token` | `secrets.GITHUB_TOKEN` | Token for downloading artifacts and managing GitHub releases. |
+```yaml
+publish:
+  # ...
+  steps:
+  - name: Set up gem credentials
+    run: |
+      mkdir -p ~/.gem
+      (umask 0077 && echo "https://gems.example.com: $API_KEY" > ~/.gem/credentials)
+    env:
+      API_KEY: ${{ secrets.PRIVATE_REGISTRY_API_KEY }}
+  - uses: release-gems/action@HASH
+```
+
+Store the API key as a secret in your GitHub repository or environment (e.g. `PRIVATE_REGISTRY_API_KEY`). The `host` value in `release-gems.yml` must match the key in `~/.gem/credentials` exactly, including scheme and trailing slash.
+
+To publish to multiple registries, list them all under `registries:` and write a credentials entry for each.

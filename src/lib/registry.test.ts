@@ -3,7 +3,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RegistryConfig } from "./config";
-import { exchangeOidcToken, pushToRegistry } from "./registry";
+import {
+  exchangeOidcToken,
+  loadGemCredentials,
+  pushToRegistry,
+} from "./registry";
 
 const { mockGetIDToken, mockSetSecret } = vi.hoisted(() => ({
   mockGetIDToken: vi.fn<() => Promise<string>>(),
@@ -129,12 +133,10 @@ describe("pushToRegistry", () => {
 
     mockFetch.mockReset();
     mockGetIDToken.mockReset();
-    process.env.GEM_HOST_API_KEY = "";
   });
 
   afterEach(() => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    process.env.GEM_HOST_API_KEY = "";
   });
 
   it("calls exchangeOidcToken for rubygems.org", async () => {
@@ -177,35 +179,50 @@ describe("pushToRegistry", () => {
   });
 
   it("does not call exchangeOidcToken for a non-rubygems.org registry", async () => {
-    process.env.GEM_HOST_API_KEY = "env-api-key";
     mockFetch.mockResolvedValue(makeResponse(200));
+    const credentials = { "https://gems.example.com": "api-key" };
 
-    await pushToRegistry(otherRegistry, gemPath, [attestationPath]);
+    await pushToRegistry(
+      otherRegistry,
+      gemPath,
+      [attestationPath],
+      credentials,
+    );
 
     expect(mockGetIDToken).not.toHaveBeenCalled();
   });
 
-  it("uses GEM_HOST_API_KEY from environment for a non-rubygems.org registry", async () => {
-    process.env.GEM_HOST_API_KEY = "env-api-key";
+  it("uses the credentials record for a non-rubygems.org registry", async () => {
     mockFetch.mockResolvedValue(makeResponse(200));
+    const credentials = { "https://gems.example.com": "api-key" };
 
-    await pushToRegistry(otherRegistry, gemPath, [attestationPath]);
+    await pushToRegistry(
+      otherRegistry,
+      gemPath,
+      [attestationPath],
+      credentials,
+    );
 
     const [, options] = mockFetch.mock.calls[0];
-    expect(options?.headers).toMatchObject({ Authorization: "env-api-key" });
+    expect(options?.headers).toMatchObject({ Authorization: "api-key" });
   });
 
-  it("throws if GEM_HOST_API_KEY is unset for a non-rubygems.org registry", async () => {
+  it("throws if credentials are missing for a non-rubygems.org registry", async () => {
     await expect(
       pushToRegistry(otherRegistry, gemPath, [attestationPath]),
-    ).rejects.toThrow(/GEM_HOST_API_KEY/);
+    ).rejects.toThrow(/No credentials found for/);
   });
 
   it("posts to the correct host URL for a non-rubygems.org registry", async () => {
-    process.env.GEM_HOST_API_KEY = "env-api-key";
     mockFetch.mockResolvedValue(makeResponse(200));
+    const credentials = { "https://gems.example.com": "api-key" };
 
-    await pushToRegistry(otherRegistry, gemPath, [attestationPath]);
+    await pushToRegistry(
+      otherRegistry,
+      gemPath,
+      [attestationPath],
+      credentials,
+    );
 
     const [url] = mockFetch.mock.calls[0];
     expect(url).toBe("https://gems.example.com/api/v1/gems");
@@ -281,5 +298,50 @@ describe("pushToRegistry", () => {
     await expect(
       pushToRegistry(rubygemsRegistry, gemPath, [attestationPath]),
     ).rejects.toThrow("Forbidden: invalid API key");
+  });
+});
+
+describe("loadGemCredentials", () => {
+  it("returns the parsed credentials record for a valid file", async () => {
+    const tmpFile = path.join(
+      os.tmpdir(),
+      `registry-test-creds-${process.pid}-${Date.now()}.yml`,
+    );
+    try {
+      fs.writeFileSync(
+        tmpFile,
+        "---\nhttps://gems.example.com: test-api-key\n",
+        "utf8",
+      );
+      const result = await loadGemCredentials(tmpFile);
+      expect(result).toEqual({ "https://gems.example.com": "test-api-key" });
+    } finally {
+      fs.rmSync(tmpFile, { force: true });
+    }
+  });
+
+  it("rejects with a helpful message when the file does not exist", async () => {
+    const nonexistent = path.join(
+      os.tmpdir(),
+      `registry-test-nonexistent-${process.pid}-${Date.now()}.yml`,
+    );
+    await expect(loadGemCredentials(nonexistent)).rejects.toThrow(
+      /Credentials file not found/,
+    );
+  });
+
+  it("rejects when the file exists but Zod validation fails (non-record content)", async () => {
+    const tmpFile = path.join(
+      os.tmpdir(),
+      `registry-test-invalid-${process.pid}-${Date.now()}.yml`,
+    );
+    try {
+      fs.writeFileSync(tmpFile, "- item1\n- item2\n", "utf8");
+      await expect(loadGemCredentials(tmpFile)).rejects.toThrow(
+        /Invalid credentials file/,
+      );
+    } finally {
+      fs.rmSync(tmpFile, { force: true });
+    }
   });
 });

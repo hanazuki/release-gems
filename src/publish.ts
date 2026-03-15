@@ -5,7 +5,11 @@ import * as z from "zod";
 import { type GemArtifactIndex, downloadGemArtifacts } from "./lib/artifact";
 import { loadConfig } from "./lib/config";
 import { getInputs } from "./lib/input";
-import { pushToRegistry } from "./lib/registry";
+import {
+  RUBYGEMS_ORG,
+  loadGemCredentials,
+  pushToRegistry,
+} from "./lib/registry";
 import * as rel from "./lib/release";
 import { type TagInfo, fetchMessage, parseTag } from "./lib/tag";
 
@@ -150,6 +154,13 @@ async function run(): Promise<void> {
     }
   });
 
+  const hasThirdPartyRegistries = registries.some(
+    (r) => new URL(r.host).hostname !== RUBYGEMS_ORG,
+  );
+  const credentials = hasThirdPartyRegistries
+    ? await loadGemCredentials()
+    : undefined;
+
   for (const registry of registries) {
     await core.group(`Publish to ${registry.host}`, async () => {
       for (const { directory, index } of artifacts) {
@@ -159,6 +170,7 @@ async function run(): Promise<void> {
           index.attestations.map(({ filename }) =>
             path.join(directory, filename),
           ),
+          credentials,
         );
       }
     });

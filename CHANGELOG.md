@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Third-party registries: API keys are now read from `~/.gem/credentials` (the standard RubyGems credential store).
+
 ## v1.0.3 (2026-03-15)
 
 - Add sbom input to attach an SBOM attestation to the build. It automatically detects CyclondDX and SPDX 2.x/3.x formats.

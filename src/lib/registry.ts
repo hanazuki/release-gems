@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
+import * as yaml from "js-yaml";
 import { z } from "zod";
 import type { RegistryConfig } from "./config";
 
@@ -20,7 +22,7 @@ export async function exchangeOidcToken(aud = "rubygems.org"): Promise<string> {
 
   const oidcToken = await core.getIDToken(aud);
 
-  core.info("Exchanging OIDC token with ${registry.host}");
+  core.info("Exchanging OIDC token with rubygems.org");
 
   const response = await fetch(
     "https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token",
@@ -45,9 +47,35 @@ export async function exchangeOidcToken(aud = "rubygems.org"): Promise<string> {
   const result = ExchangeTokenResponseSchema.parse(json);
   core.setSecret(result.rubygems_api_key);
 
-  core.info(`Credentials received: ${json}`);
+  core.info(`Credentials received: ${JSON.stringify(json)}`);
 
   return result.rubygems_api_key;
+}
+
+const GemCredentialsSchema = z.record(z.string(), z.string());
+
+/**
+ * Load gem credentials from the given credentials file path.
+ */
+export async function loadGemCredentials(
+  credentialsPath = path.join(os.homedir(), ".gem", "credentials"),
+): Promise<Record<string, string>> {
+  let content: string;
+  try {
+    content = await fs.promises.readFile(credentialsPath, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error(`Credentials file not found ${credentialsPath}`);
+    }
+    throw err;
+  }
+
+  const parsed = yaml.load(content);
+  try {
+    return GemCredentialsSchema.parse(parsed);
+  } catch (err) {
+    throw new Error(`Invalid credentials file ${credentialsPath}`);
+  }
 }
 
 /**
@@ -55,32 +83,33 @@ export async function exchangeOidcToken(aud = "rubygems.org"): Promise<string> {
  *
  * For rubygems.org: exchanges a GitHub Actions OIDC token for a short-lived
  * API key via the trusted publisher API.
- * For other registries: reads the API key from the GEM_HOST_API_KEY environment
- * variable (user's responsibility to set).
+ * For other registries: looks up the API key from the provided credentials record.
  *
  * Sends a multipart POST to /api/v1/gems with the gem binary and its Sigstore
  * attestation bundle. HTTP 409 (version already published) is treated as success.
  *
  * @param registry        Registry configuration.
  * @param gemPath         Path to the .gem file.
- * @param attestationPath Path to the .sigstore.json bundle.
+ * @param attestationPaths Paths to the .sigstore.json bundle files.
+ * @param credentials     Credentials record loaded from ~/.gem/credentials.
  */
 export async function pushToRegistry(
   registry: RegistryConfig,
   gemPath: string,
   attestationPaths: string[],
+  credentials?: Record<string, string>,
 ): Promise<void> {
   let apiKey: string;
   if (new URL(registry.host).hostname === RUBYGEMS_ORG) {
     apiKey = await exchangeOidcToken();
   } else {
-    // TODO: read ~/.gem/credentials
-    apiKey = process.env.GEM_HOST_API_KEY ?? "";
-    if (!apiKey) {
+    const key = credentials?.[registry.host];
+    if (!key) {
       throw new Error(
-        `GEM_HOST_API_KEY is not set for registry ${registry.host}`,
+        `No credentials found for ${registry.host} in ~/.gem/credentials`,
       );
     }
+    apiKey = key;
   }
 
   const body = new FormData();
