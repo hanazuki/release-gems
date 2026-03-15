@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add sbom input to attach an SBOM attestation to the build. It automatically detects CyclondDX and SPDX 2.x/3.x formats.
+
 ## v1.0.3.alpha4 (2026-03-07)
 
 ## v1.0.3.alpha3 (2026-03-07)

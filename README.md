@@ -106,6 +106,8 @@ on:
 | `github-token` | `secrets.GITHUB_TOKEN` | Token for uploading artifacts and creating attestations. |
 | `retention-days` | GitHub account default | Artifact retention period in days. |
 | `ruby` | `ruby` | Path or name of the Ruby binary. |
+| `sbom` | (none) | Path to an SBOM file to attach. If omitted, no SBOM attestation is created. Supported formats: CycloneDX JSON, SPDX 2.x JSON, SPDX 3.x JSON-LD. |
+| `sbom-predicate-type` | (auto-detected) | in-toto predicate type URI for the SBOM attestation. Provide this for formats that cannot be auto-detected. |
 
 ### `publish`
 

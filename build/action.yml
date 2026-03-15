@@ -12,6 +12,12 @@ inputs:
     description: Path or name of the Ruby binary used to invoke the gem-building script
     required: false
     default: ruby
+  sbom:
+    description: Path to an SBOM file to attach. If omitted, no SBOM attestation is created.
+    required: false
+  sbom-predicate-type:
+    description: in-toto predicate type URI for the SBOM attestation. If omitted, auto-detected from the SBOM file content.
+    required: false
 runs:
   using: node24
   main: index.js

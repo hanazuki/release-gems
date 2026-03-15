@@ -7,6 +7,7 @@ const {
   mockGetInput,
   mockSetFailed,
   mockAttestProvenance,
+  mockAttest,
   mockUploadArtifact,
 } = vi.hoisted(() => {
   const mockUploadArtifact = vi.fn();
@@ -15,6 +16,7 @@ const {
       vi.fn<(name: string, options?: { required?: boolean }) => string>(),
     mockSetFailed: vi.fn(),
     mockAttestProvenance: vi.fn(),
+    mockAttest: vi.fn(),
     mockUploadArtifact,
   };
 });
@@ -27,6 +29,7 @@ vi.mock("@actions/core", async (importOriginal) => ({
 
 vi.mock("@actions/attest", () => ({
   attestProvenance: mockAttestProvenance,
+  attest: mockAttest,
 }));
 
 vi.mock("@actions/artifact", () => ({
@@ -104,6 +107,13 @@ beforeEach(() => {
 
   mockAttestProvenance.mockResolvedValue({
     bundle: { mediaType: "application/vnd.dev.sigstore.bundle.v0.3+json" },
+    attestationID: "provenance-id",
+    tlogID: "provenance-tlog",
+  });
+  mockAttest.mockResolvedValue({
+    bundle: { mediaType: "application/vnd.dev.sigstore.bundle.v0.3+json" },
+    attestationID: "sbom-id",
+    tlogID: "sbom-tlog",
   });
   mockUploadArtifact.mockResolvedValue({ id: 1, size: 0 });
 });
@@ -309,6 +319,71 @@ describe("build action", () => {
 
     expect(mockSetFailed).not.toHaveBeenCalled();
     expect(mockUploadArtifact).toHaveBeenCalledOnce();
+  });
+
+  it("without sbom input, uploads only provenance attestation", async () => {
+    fs.writeFileSync(
+      path.join(workspace, "foo.gemspec"),
+      gemspecContent("foo", "1.0.0"),
+    );
+
+    await loadBuild();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockAttest).not.toHaveBeenCalled();
+    const files: string[] = mockUploadArtifact.mock.calls[0][1];
+    const attestationFiles = files.filter((f) => f.endsWith(".sigstore.json"));
+    expect(attestationFiles).toHaveLength(1);
+    expect(attestationFiles[0]).toContain("provenance-");
+  });
+
+  it("with sbom input, attests SBOM and uploads two attestation files", async () => {
+    fs.writeFileSync(
+      path.join(workspace, "foo.gemspec"),
+      gemspecContent("foo", "1.0.0"),
+    );
+    const sbomPath = path.join(workspace, "sbom.json");
+    fs.writeFileSync(
+      sbomPath,
+      JSON.stringify({ bomFormat: "CycloneDX", specVersion: "1.6" }),
+    );
+
+    mockGetInput.mockImplementation((name: string) => {
+      switch (name) {
+        case "github-token":
+          return "gha-token";
+        case "retention-days":
+          return "";
+        case "ruby":
+          return "ruby";
+        case "sbom":
+          return sbomPath;
+        default:
+          return "";
+      }
+    });
+
+    await loadBuild();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockAttest).toHaveBeenCalledOnce();
+    expect(mockAttest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjects: expect.arrayContaining([
+          expect.objectContaining({ name: "foo-1.0.0.gem" }),
+        ]),
+        predicateType: "https://cyclonedx.org/bom/v1.6",
+      }),
+    );
+    const files: string[] = mockUploadArtifact.mock.calls[0][1];
+    const attestationFiles = files.filter((f) => f.endsWith(".sigstore.json"));
+    expect(attestationFiles).toHaveLength(2);
+    expect(
+      attestationFiles.some((f) => path.basename(f).startsWith("provenance-")),
+    ).toBe(true);
+    expect(
+      attestationFiles.some((f) => path.basename(f).startsWith("sbom-")),
+    ).toBe(true);
   });
 
   it("per-gem prebuild hook receives gem environment variables", async () => {
