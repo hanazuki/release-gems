@@ -1,14 +1,12 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2024",
     "module": "ES2022",
     "moduleResolution": "bundler",
-    "lib": ["esnext"],
+    "lib": ["ES2024", "ESNext.Array"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "resolveJsonModule": true,
     "types": ["vitest/importMeta", "node"]
   },
   "include": ["src/**/*", "rolldown.config.ts"]
