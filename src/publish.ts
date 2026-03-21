@@ -2,16 +2,16 @@ import * as path from "node:path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as z from "zod";
-import { type GemArtifactIndex, downloadGemArtifacts } from "./lib/artifact";
+import { downloadGemArtifacts, type GemArtifactIndex } from "./lib/artifact";
 import { loadConfig } from "./lib/config";
 import { getInputs } from "./lib/input";
 import {
-  RUBYGEMS_ORG,
   loadGemCredentials,
   pushToRegistry,
+  RUBYGEMS_ORG,
 } from "./lib/registry";
 import * as rel from "./lib/release";
-import { type TagInfo, fetchMessage, parseTag } from "./lib/tag";
+import { fetchMessage, parseTag, type TagInfo } from "./lib/tag";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 

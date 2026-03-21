@@ -1,10 +1,6 @@
-import commonjs from "@rollup/plugin-commonjs";
-import json from "@rollup/plugin-json";
-import nodeResolve from "@rollup/plugin-node-resolve";
-import replace from "@rollup/plugin-replace";
-import { defineConfig } from "rollup";
+import { defineConfig } from "rolldown";
+import { replacePlugin } from "rolldown/plugins";
 import license from "rollup-plugin-license";
-import typescript from "rollup-plugin-typescript2";
 
 const banner = `\
 <% for (const dependency of dependencies) {
@@ -27,11 +23,7 @@ const banner = `\
 %>`;
 
 const plugins = [
-  nodeResolve({ preferBuiltins: true }),
-  commonjs(),
-  json(),
-  typescript(),
-  replace({ "import.meta.vitest": "undefined", preventAssignment: false }),
+  replacePlugin({ "import.meta.vitest": "undefined" }),
   license({
     banner,
     thirdParty: {
@@ -49,7 +41,7 @@ export default defineConfig([
     output: {
       file: "build/index.js",
       format: "cjs",
-      inlineDynamicImports: true,
+      codeSplitting: false,
     },
     plugins,
   },
@@ -58,7 +50,7 @@ export default defineConfig([
     output: {
       file: "index.js",
       format: "cjs",
-      inlineDynamicImports: true,
+      codeSplitting: false,
     },
     plugins,
   },

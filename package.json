@@ -1,11 +1,11 @@
 {
-  "packageManager": "pnpm@10.30.3",
+  "packageManager": "pnpm@10.32.1",
   "name": "@hanazuki/release-gems",
   "private": true,
   "version": "1.0.3",
   "license": "MIT",
   "scripts": {
-    "build": "rollup -c rollup.config.ts --configPlugin rollup-plugin-typescript2",
+    "build": "rolldown -c rolldown.config.ts",
     "lint": "biome check .",
     "lintfix": "biome check --fix .",
     "typecheck": "tsc --noEmit",
@@ -15,26 +15,21 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@actions/artifact": "^2.3.2",
-    "@actions/attest": "^1.6.0",
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.1",
-    "@octokit/rest": "^21.1.1",
+    "@actions/artifact": "^6.2.1",
+    "@actions/attest": "^3.2.0",
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.0.0",
     "js-yaml": "^4.1.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@rollup/plugin-commonjs": "^29.0.2",
-    "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^16.0.3",
-    "@rollup/plugin-replace": "^6.0.3",
+    "@biomejs/biome": "^2.4.8",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.19.15",
-    "rollup": "^4.59.1",
+    "@types/node": "^24",
+    "rolldown": "1.0.0-rc.10",
     "rollup-plugin-license": "^3.7.0",
-    "rollup-plugin-typescript2": "^0.36.0",
     "typescript": "^5.9.3",
-    "vitest": "^2.1.9"
+    "vite": "^8.0.1",
+    "vitest": "^4.1.0"
   }
 }

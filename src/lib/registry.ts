@@ -73,7 +73,7 @@ export async function loadGemCredentials(
   const parsed = yaml.load(content);
   try {
     return GemCredentialsSchema.parse(parsed);
-  } catch (err) {
+  } catch (_err) {
     throw new Error(`Invalid credentials file ${credentialsPath}`);
   }
 }

@@ -12,13 +12,13 @@ import * as z from "zod";
 import { uploadGemArtifact } from "./lib/artifact";
 import {
   type HookConfig,
-  type RegistryConfig,
   loadConfigLocal,
+  type RegistryConfig,
 } from "./lib/config";
-import { type GemBuildResult, type Gemspec, buildGem } from "./lib/gem";
+import { buildGem, type GemBuildResult, type Gemspec } from "./lib/gem";
 import { runHook } from "./lib/hook";
-import { IntegerSchema, getInputs } from "./lib/input";
-import { type Target, resolveTargets, selectTargets } from "./lib/project";
+import { getInputs, IntegerSchema } from "./lib/input";
+import { resolveTargets, selectTargets, type Target } from "./lib/project";
 import { loadSbom } from "./lib/sbom";
 import { parseTag } from "./lib/tag";
 

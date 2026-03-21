@@ -36,7 +36,7 @@ export function getInputs<
 }
 
 export const IntegerSchema = z.string().transform<number>((val, ctx) => {
-  const intval = Number.parseInt(val);
+  const intval = Number.parseInt(val, 10);
   if (Number.isNaN(intval)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
