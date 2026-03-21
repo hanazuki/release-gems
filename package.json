@@ -15,11 +15,10 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@actions/artifact": "^2.3.2",
-    "@actions/attest": "^1.6.0",
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.1",
-    "@octokit/rest": "^21.1.1",
+    "@actions/artifact": "^6.2.1",
+    "@actions/attest": "^3.2.0",
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.0.0",
     "js-yaml": "^4.1.1",
     "zod": "^3.25.76"
   },
