@@ -56,6 +56,18 @@ vi.mock("@actions/github", async (importOriginal) => {
     get: () => process.env.GITHUB_REF ?? "",
     configurable: true,
   });
+  Object.defineProperty(context, "eventName", {
+    get: () => process.env.GITHUB_EVENT_NAME ?? "",
+    configurable: true,
+  });
+  Object.defineProperty(context, "payload", {
+    get: () => {
+      const p = process.env.GITHUB_EVENT_PATH;
+      if (p) return JSON.parse(fs.readFileSync(p, { encoding: "utf8" }));
+      return {};
+    },
+    configurable: true,
+  });
   return { ...original, context, getOctokit: mockGetOctokit };
 });
 
@@ -140,6 +152,8 @@ afterEach(() => {
   fs.rmSync(workspace, { recursive: true, force: true });
   process.env.GITHUB_WORKSPACE = undefined;
   process.env.GITHUB_REF = undefined;
+  process.env.GITHUB_EVENT_NAME = undefined;
+  process.env.GITHUB_EVENT_PATH = undefined;
 });
 
 // Tests
@@ -553,6 +567,94 @@ describe("build action", () => {
       expect(mockGetRef).not.toHaveBeenCalled();
       expect(mockGetTag).not.toHaveBeenCalled();
       expect(mockUploadArtifact).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("forked pull request", () => {
+    function writeEventPayload(payload: object): void {
+      const eventPath = path.join(workspace, "event.json");
+      fs.writeFileSync(eventPath, JSON.stringify(payload));
+      process.env.GITHUB_EVENT_NAME = "pull_request";
+      process.env.GITHUB_EVENT_PATH = eventPath;
+    }
+
+    it("forked PR skips both attestations but still uploads artifact", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      writeEventPayload({
+        pull_request: {
+          head: { repo: { full_name: "contributor/repo" } },
+          base: { repo: { full_name: "owner/repo" } },
+        },
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockAttestProvenance).not.toHaveBeenCalled();
+      expect(mockAttest).not.toHaveBeenCalled();
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+      const files: string[] = mockUploadArtifact.mock.calls[0][1];
+      expect(files.filter((f) => f.endsWith(".sigstore.json"))).toHaveLength(0);
+    });
+
+    it("same-repo PR still attests normally", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      writeEventPayload({
+        pull_request: {
+          head: { repo: { full_name: "owner/repo" } },
+          base: { repo: { full_name: "owner/repo" } },
+        },
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockAttestProvenance).toHaveBeenCalledOnce();
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+      const files: string[] = mockUploadArtifact.mock.calls[0][1];
+      expect(files.filter((f) => f.endsWith(".sigstore.json"))).toHaveLength(1);
+    });
+
+    it("forked PR with sbom input also skips SBOM attestation", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      const sbomPath = path.join(workspace, "sbom.json");
+      fs.writeFileSync(
+        sbomPath,
+        JSON.stringify({ bomFormat: "CycloneDX", specVersion: "1.6" }),
+      );
+      writeEventPayload({
+        pull_request: {
+          head: { repo: { full_name: "contributor/repo" } },
+          base: { repo: { full_name: "owner/repo" } },
+        },
+      });
+      mockGetInput.mockImplementation((name: string) => {
+        switch (name) {
+          case "github-token":
+            return "gha-token";
+          case "ruby":
+            return "ruby";
+          case "sbom":
+            return sbomPath;
+          default:
+            return "";
+        }
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockAttestProvenance).not.toHaveBeenCalled();
+      expect(mockAttest).not.toHaveBeenCalled();
     });
   });
 });

@@ -259,23 +259,32 @@ async function run(): Promise<void> {
 
   const attestations: Attestation[] = [];
 
-  attestations.push(
-    await core.group("Attest provenance", async () =>
-      attestProvenance({ subjects, token }),
-    ),
-  );
+  const isFork =
+    github.context.eventName === "pull_request" &&
+    github.context.payload.pull_request?.head?.repo?.full_name !==
+      github.context.payload.pull_request?.base?.repo?.full_name;
 
-  if (sbomPath != null) {
+  if (isFork) {
+    core.info("Attestation skipped: pull request from a forked repository.");
+  } else {
     attestations.push(
-      await core.group("Attest SBOM", async () =>
-        attestSbom({
-          subjects,
-          sbomPath,
-          predicateTypeOverride,
-          token,
-        }),
+      await core.group("Attest provenance", async () =>
+        attestProvenance({ subjects, token }),
       ),
     );
+
+    if (sbomPath != null) {
+      attestations.push(
+        await core.group("Attest SBOM", async () =>
+          attestSbom({
+            subjects,
+            sbomPath,
+            predicateTypeOverride,
+            token,
+          }),
+        ),
+      );
+    }
   }
 
   await core.group("Upload artifacts", async () => {

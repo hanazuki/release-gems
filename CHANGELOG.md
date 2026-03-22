@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Attestation is automatically skipped when the build action runs in a pull request from a forked repository.
 - Build action now verifies by default that the triggering tag is an annotated tag with a GitHub-verified signature (Opt out by setting `verify-tag: false`).
 - Third-party registries: API keys are now read from `~/.gem/credentials` (the standard RubyGems credential store).
 
