@@ -63,6 +63,39 @@ function stripSignature(message: string): string {
 }
 
 /**
+ * Verify that the given tag is an annotated tag with a GitHub-verified signature.
+ * Throws an error if the tag is lightweight or its signature is not verified.
+ */
+export async function verifyTag({
+  octokit,
+  repo,
+  tagName,
+}: {
+  octokit: Octokit;
+  repo: { owner: string; repo: string };
+  tagName: string;
+}): Promise<void> {
+  const ref = await octokit.rest.git.getRef({
+    ...repo,
+    ref: `tags/${tagName}`,
+  });
+  if (ref.data.object.type !== "tag") {
+    throw new Error(
+      `Tag ${tagName} is not an annotated tag; only annotated tags with a verified signature are accepted`,
+    );
+  }
+  const tag = await octokit.rest.git.getTag({
+    ...repo,
+    tag_sha: ref.data.object.sha,
+  });
+  if (!tag.data.verification?.verified) {
+    throw new Error(
+      `Tag ${tagName} signature verification failed: ${tag.data.verification?.reason}`,
+    );
+  }
+}
+
+/**
  * Fetch the message of an annotated tag via the GitHub REST API.
  * Returns null if the tag is a lightweight (non-annotated) tag.
  * The returned message has any cryptographic signature stripped.

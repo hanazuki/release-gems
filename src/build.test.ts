@@ -9,8 +9,16 @@ const {
   mockAttestProvenance,
   mockAttest,
   mockUploadArtifact,
+  mockGetRef,
+  mockGetTag,
+  mockGetOctokit,
 } = vi.hoisted(() => {
   const mockUploadArtifact = vi.fn();
+  const mockGetRef = vi.fn();
+  const mockGetTag = vi.fn();
+  const mockGetOctokit = vi.fn(() => ({
+    rest: { git: { getRef: mockGetRef, getTag: mockGetTag } },
+  }));
   return {
     mockGetInput:
       vi.fn<(name: string, options?: { required?: boolean }) => string>(),
@@ -18,6 +26,9 @@ const {
     mockAttestProvenance: vi.fn(),
     mockAttest: vi.fn(),
     mockUploadArtifact,
+    mockGetRef,
+    mockGetTag,
+    mockGetOctokit,
   };
 });
 
@@ -45,7 +56,7 @@ vi.mock("@actions/github", async (importOriginal) => {
     get: () => process.env.GITHUB_REF ?? "",
     configurable: true,
   });
-  return { ...original, context };
+  return { ...original, context, getOctokit: mockGetOctokit };
 });
 
 // Helpers
@@ -103,6 +114,13 @@ beforeEach(() => {
       default:
         return "";
     }
+  });
+
+  mockGetRef.mockResolvedValue({
+    data: { object: { type: "tag", sha: "abc123" } },
+  });
+  mockGetTag.mockResolvedValue({
+    data: { verification: { verified: true, reason: "valid" } },
   });
 
   mockAttestProvenance.mockResolvedValue({
@@ -436,5 +454,105 @@ describe("build action", () => {
 
     expect(mockSetFailed).not.toHaveBeenCalled();
     expect(fs.readFileSync(hookOutputFile, "utf8").trim()).toBe("foo");
+  });
+
+  describe("verify-tag", () => {
+    it("verified annotated tag passes", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      process.env.GITHUB_REF = "refs/tags/v1.0.0";
+      mockGetRef.mockResolvedValue({
+        data: { object: { type: "tag", sha: "deadbeef" } },
+      });
+      mockGetTag.mockResolvedValue({
+        data: { verification: { verified: true, reason: "valid" } },
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+    });
+
+    it("lightweight tag fails", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      process.env.GITHUB_REF = "refs/tags/v1.0.0";
+      mockGetRef.mockResolvedValue({
+        data: { object: { type: "commit", sha: "deadbeef" } },
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        expect.stringContaining("is not an annotated tag"),
+      );
+      expect(mockUploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("unverified annotated tag fails", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      process.env.GITHUB_REF = "refs/tags/v1.0.0";
+      mockGetRef.mockResolvedValue({
+        data: { object: { type: "tag", sha: "deadbeef" } },
+      });
+      mockGetTag.mockResolvedValue({
+        data: { verification: { verified: false, reason: "unsigned" } },
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).toHaveBeenCalledWith(
+        expect.stringContaining("signature verification failed: unsigned"),
+      );
+      expect(mockUploadArtifact).not.toHaveBeenCalled();
+    });
+
+    it("branch push skips signature check", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      // GITHUB_REF defaults to "refs/heads/main" (set in beforeEach)
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockGetRef).not.toHaveBeenCalled();
+      expect(mockGetTag).not.toHaveBeenCalled();
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+    });
+
+    it("verify-tag=false skips signature check", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      process.env.GITHUB_REF = "refs/tags/v1.0.0";
+      mockGetInput.mockImplementation((name: string) => {
+        switch (name) {
+          case "github-token":
+            return "gha-token";
+          case "verify-tag":
+            return "false";
+          default:
+            return "";
+        }
+      });
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockGetRef).not.toHaveBeenCalled();
+      expect(mockGetTag).not.toHaveBeenCalled();
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+    });
   });
 });

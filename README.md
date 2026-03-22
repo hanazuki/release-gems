@@ -55,7 +55,7 @@ Replace `HASH` with the commit SHA or tag of the release-gems release you want t
 Push a tag to trigger a release:
 
 ```sh
-git tag v1.2.0
+git tag -s v1.2.0
 git push origin v1.2.0
 ```
 
@@ -94,6 +94,7 @@ All fields are optional. The config file itself is optional for single-gem repos
 | `ruby` | `ruby` | Path or name of the Ruby binary. |
 | `sbom` | (none) | Path to an SBOM file to attach. If omitted, no SBOM attestation is created. Supported formats: CycloneDX JSON, SPDX 2.x JSON, SPDX 3.x JSON-LD. |
 | `sbom-predicate-type` | (auto-detected) | in-toto predicate type URI for the SBOM attestation. Provide this for formats that cannot be auto-detected. |
+| `verify-tag` | `true` | If true, requires the triggering tag to be an annotated tag with a signature verified by GitHub. |
 
 ### `publish`
 

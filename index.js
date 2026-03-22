@@ -29201,7 +29201,7 @@ ZodSet.create;
 ZodFunction.create;
 ZodLazy.create;
 ZodLiteral.create;
-ZodEnum.create;
+const enumType = ZodEnum.create;
 ZodNativeEnum.create;
 ZodPromise.create;
 ZodEffects.create;
@@ -97531,6 +97531,14 @@ function getInputs(schemata) {
 	if (errors.length > 0) throw new Error(`Invalid inputs:\n${errors.join("\n")}`);
 	return values;
 }
+enumType([
+	"true",
+	"True",
+	"TRUE",
+	"false",
+	"False",
+	"FALSE"
+]).transform((v) => v.toLowerCase() === "true");
 stringType().transform((val, ctx) => {
 	const intval = Number.parseInt(val, 10);
 	if (Number.isNaN(intval)) {

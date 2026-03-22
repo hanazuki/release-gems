@@ -35,6 +35,10 @@ export function getInputs<
   return values as { [K in keyof T]: z.infer<T[K]> };
 }
 
+export const BooleanSchema = z
+  .enum(["true", "True", "TRUE", "false", "False", "FALSE"])
+  .transform((v) => v.toLowerCase() === "true");
+
 export const IntegerSchema = z.string().transform<number>((val, ctx) => {
   const intval = Number.parseInt(val, 10);
   if (Number.isNaN(intval)) {
