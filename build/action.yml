@@ -18,6 +18,10 @@ inputs:
   sbom-predicate-type:
     description: in-toto predicate type URI for the SBOM attestation. If omitted, auto-detected from the SBOM file content.
     required: false
+  verify-tag:
+    description: If true, requires the triggering tag to be an annotated tag with a valid signature.
+    required: false
+    default: "true"
 runs:
   using: node24
   main: index.js

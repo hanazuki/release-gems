@@ -17,10 +17,10 @@ import {
 } from "./lib/config";
 import { buildGem, type GemBuildResult, type Gemspec } from "./lib/gem";
 import { runHook } from "./lib/hook";
-import { getInputs, IntegerSchema } from "./lib/input";
+import { BooleanSchema, getInputs, IntegerSchema } from "./lib/input";
 import { resolveTargets, selectTargets, type Target } from "./lib/project";
 import { loadSbom } from "./lib/sbom";
-import { parseTag } from "./lib/tag";
+import { parseTag, verifyTag } from "./lib/tag";
 
 const ATTESTATION_HASH_DIGITS = 8;
 
@@ -217,17 +217,28 @@ async function run(): Promise<void> {
     ruby,
     sbom: sbomPath,
     "sbom-predicate-type": predicateTypeOverride,
+    "verify-tag": verifyTagInput,
   } = getInputs({
     "github-token": z.string(),
     "retention-days": IntegerSchema.optional(),
     ruby: z.string().default("ruby"),
     sbom: z.string().optional(),
     "sbom-predicate-type": z.string().optional(),
+    "verify-tag": BooleanSchema.default("true"),
   });
 
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
   const config = await loadConfigLocal(workspace);
   const tagInfo = parseTag(github.context.ref);
+
+  if (verifyTagInput && tagInfo !== null) {
+    const octokit = github.getOctokit(token);
+    await verifyTag({
+      octokit,
+      repo: github.context.repo,
+      tagName: tagInfo.tagName,
+    });
+  }
 
   const candidates = await resolveTargets(workspace, config, ruby);
   const targets = selectTargets(candidates, tagInfo);
