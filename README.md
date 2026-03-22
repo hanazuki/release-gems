@@ -27,10 +27,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write  # To obtain an ID token used for provenance attestation
+      contents: read  # To check out the repository
+      id-token: write  # To obtain an ID token to sign attestation
       attestations: write  # To store the attestations on GitHub
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: ruby
