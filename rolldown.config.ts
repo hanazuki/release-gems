@@ -1,4 +1,4 @@
-import { defineConfig } from "rolldown";
+import type { RolldownOptions } from "rolldown";
 import { replacePlugin } from "rolldown/plugins";
 import license from "rollup-plugin-license";
 
@@ -35,23 +35,14 @@ const plugins = [
   }),
 ];
 
-export default defineConfig([
-  {
-    input: "src/build.ts",
+export default ["build", "publish"].map(
+  (name): RolldownOptions => ({
+    input: `src/${name}.ts`,
     output: {
-      file: "build/index.js",
+      file: `dist/${name}.js`,
       format: "cjs",
       codeSplitting: false,
     },
     plugins,
-  },
-  {
-    input: "src/publish.ts",
-    output: {
-      file: "index.js",
-      format: "cjs",
-      codeSplitting: false,
-    },
-    plugins,
-  },
-]);
+  }),
+);

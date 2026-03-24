@@ -1,0 +1,10 @@
+name: Release Gems
+description: Build and publish Ruby gems (publish stage)
+inputs:
+  github-token:
+    description: GitHub token for downloading artifacts, fetching config, and managing GitHub releases
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: node24
+  main: ../dist/publish.js

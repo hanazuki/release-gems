@@ -48,7 +48,7 @@ jobs:
       contents: write  # To create a GitHub release and publish assets
       id-token: write  # To obtain an ID token to log in RubyGems.org as a trusted publisher
     steps:
-    - uses: release-gems/action@HASH
+    - uses: release-gems/action/publish@HASH
 ```
 
 Replace `HASH` with the commit SHA or tag of the release-gems release you want to pin to.

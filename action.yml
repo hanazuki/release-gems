@@ -1,10 +1,15 @@
 name: Release Gems
-description: Build and publish Ruby gems (publish stage)
-inputs:
-  github-token:
-    description: GitHub token for downloading artifacts, fetching config, and managing GitHub releases
-    required: false
-    default: ${{ github.token }}
+description: Build and publish Ruby gems
+
+branding:
+  icon: package
+  color: red
+
 runs:
-  using: node24
-  main: index.js
+  using: composite
+  steps:
+  - name: Error
+    run: |
+      echo '::error::Do not use this action directly. Read [the documentation](https://github.com/release-gems/action?tab=readme-ov-file#quick-start) for set up.'
+      exit 1
+    shell: bash
