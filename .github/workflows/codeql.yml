@@ -35,6 +35,9 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@38697555549f1db7851b81482ff19f1fa5c4fedc # v4.34.1
       with:
+        config: |
+          paths:
+          - src
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
     - name: Perform CodeQL Analysis
