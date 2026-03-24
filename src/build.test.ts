@@ -621,7 +621,7 @@ describe("build action", () => {
             "gems:",
             "- gemspec: foo.gemspec",
             "  hooks:",
-            "    prebuild: gh api /octocat",
+            "    prebuild: curl -f https://api.github.com/octocat",
           ].join("\n"),
         );
 
@@ -660,7 +660,7 @@ describe("build action", () => {
             "gems:",
             "- gemspec: foo.gemspec",
             "  hooks:",
-            "    prebuild: gh api /octocat",
+            "    prebuild: curl -f https://api.github.com/octocat",
           ].join("\n"),
         );
 
