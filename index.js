@@ -1,7 +1,7 @@
 /**
 * ---
 *
-* @hanazuki/release-gems -- 1.0.3
+* @hanazuki/release-gems -- 1.1.0
 *
 * ## License (MIT)
 *
