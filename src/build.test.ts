@@ -3,6 +3,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const bwrapAvailable = fs.existsSync("/usr/bin/bwrap");
+
 const {
   mockGetInput,
   mockSetFailed,
@@ -567,6 +569,135 @@ describe("build action", () => {
       expect(mockGetRef).not.toHaveBeenCalled();
       expect(mockGetTag).not.toHaveBeenCalled();
       expect(mockUploadArtifact).toHaveBeenCalledOnce();
+    });
+  });
+
+  const ghAvailable = fs.existsSync("/usr/bin/gh");
+
+  describe.skipIf(!bwrapAvailable)("sandbox: bubblewrap", () => {
+    beforeEach(() => {
+      mockGetInput.mockImplementation((name: string) => {
+        switch (name) {
+          case "github-token":
+            return "gha-token";
+          case "ruby":
+            return "ruby";
+          case "sandbox":
+            return "bubblewrap";
+          default:
+            return "";
+        }
+      });
+    });
+
+    it("builds and uploads gem successfully inside bubblewrap sandbox", async () => {
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+      expect(mockUploadArtifact).toHaveBeenCalledWith(
+        "release-gems-foo-ruby",
+        expect.arrayContaining([expect.stringContaining("foo-1.0.0.gem")]),
+        expect.any(String),
+        expect.any(Object),
+      );
+    });
+
+    it.skipIf(!ghAvailable)(
+      "network access is blocked inside sandbox",
+      async () => {
+        fs.writeFileSync(
+          path.join(workspace, "foo.gemspec"),
+          gemspecContent("foo", "1.0.0"),
+        );
+        fs.writeFileSync(
+          path.join(workspace, ".github", "release-gems.yml"),
+          [
+            "gems:",
+            "- gemspec: foo.gemspec",
+            "  hooks:",
+            "    prebuild: curl -f https://api.github.com/octocat",
+          ].join("\n"),
+        );
+
+        await loadBuild();
+
+        expect(mockSetFailed).toHaveBeenCalled();
+        expect(mockUploadArtifact).not.toHaveBeenCalled();
+      },
+    );
+
+    it.skipIf(!ghAvailable)(
+      "network access is allowed inside sandbox when sandbox-isolate-network is false",
+      async () => {
+        mockGetInput.mockImplementation((name: string) => {
+          switch (name) {
+            case "github-token":
+              return "gha-token";
+            case "ruby":
+              return "ruby";
+            case "sandbox":
+              return "bubblewrap";
+            case "sandbox-isolate-network":
+              return "false";
+            default:
+              return "";
+          }
+        });
+
+        fs.writeFileSync(
+          path.join(workspace, "foo.gemspec"),
+          gemspecContent("foo", "1.0.0"),
+        );
+        fs.writeFileSync(
+          path.join(workspace, ".github", "release-gems.yml"),
+          [
+            "gems:",
+            "- gemspec: foo.gemspec",
+            "  hooks:",
+            "    prebuild: curl -f https://api.github.com/octocat",
+          ].join("\n"),
+        );
+
+        await loadBuild();
+
+        expect(mockSetFailed).not.toHaveBeenCalled();
+        expect(mockUploadArtifact).toHaveBeenCalledOnce();
+      },
+    );
+
+    it("prebuild hook runs and can write to workspace inside sandbox", async () => {
+      const hookOutputFile = path.join(workspace, "hook_output.txt");
+      fs.writeFileSync(
+        path.join(workspace, "foo.gemspec"),
+        gemspecContent("foo", "1.0.0"),
+      );
+      fs.writeFileSync(
+        path.join(workspace, ".github", "release-gems.yml"),
+        [
+          "gems:",
+          "- gemspec: foo.gemspec",
+          "  hooks:",
+          `    prebuild: echo $RELEASE_GEMS_GEM_NAME > ${hookOutputFile}`,
+        ].join("\n"),
+      );
+
+      await loadBuild();
+
+      expect(mockSetFailed).not.toHaveBeenCalled();
+      expect(fs.readFileSync(hookOutputFile, "utf8").trim()).toBe("foo");
+      expect(mockUploadArtifact).toHaveBeenCalledOnce();
+      expect(mockUploadArtifact).toHaveBeenCalledWith(
+        "release-gems-foo-ruby",
+        expect.arrayContaining([expect.stringContaining("foo-1.0.0.gem")]),
+        expect.any(String),
+        expect.any(Object),
+      );
     });
   });
 

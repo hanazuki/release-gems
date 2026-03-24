@@ -52,3 +52,13 @@ export const IntegerSchema = z
     }
     return intval;
   });
+
+export const NewlineSeparatedSchema = <
+  T extends z.ZodType<unknown, z.ZodTypeDef, string>,
+>(
+  itemSchema: T,
+) =>
+  z
+    .string()
+    .transform((val) => val.split("\n").filter((line) => line.length > 0))
+    .pipe(z.array(itemSchema));

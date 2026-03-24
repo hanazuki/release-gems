@@ -17,8 +17,14 @@ import {
 } from "./lib/config";
 import { buildGem, type GemBuildResult, type Gemspec } from "./lib/gem";
 import { runHook } from "./lib/hook";
-import { BooleanSchema, getInputs, IntegerSchema } from "./lib/input";
+import {
+  BooleanSchema,
+  getInputs,
+  IntegerSchema,
+  NewlineSeparatedSchema,
+} from "./lib/input";
 import { resolveTargets, selectTargets, type Target } from "./lib/project";
+import type { SandboxConfig } from "./lib/sandbox";
 import { loadSbom } from "./lib/sbom";
 import { parseTag, verifyTag } from "./lib/tag";
 
@@ -37,9 +43,11 @@ type Attestation = {
 async function build({
   target,
   ruby,
+  sandboxConfig,
 }: {
   target: Target;
   ruby: string;
+  sandboxConfig: SandboxConfig;
 }): Promise<BuildResult> {
   const gemDir = path.dirname(target.gemspecPath);
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "release-gems-"));
@@ -50,15 +58,19 @@ async function build({
   };
 
   await core.group(`Run prebuild hook for ${target.gemspec.name}`, async () =>
-    runHook(target.gemConfig.hooks?.prebuild, gemDir, hookEnv),
+    runHook(target.gemConfig.hooks?.prebuild, gemDir, hookEnv, sandboxConfig),
   );
 
   const result = await core.group(`Pack ${target.gemspec.name}`, async () => {
-    return buildGem(ruby, target.gemspecPath, outDir);
+    const buildSandboxConfig: SandboxConfig = {
+      ...sandboxConfig,
+      writablePaths: [...sandboxConfig.writablePaths, path.resolve(outDir)],
+    };
+    return buildGem(ruby, target.gemspecPath, outDir, buildSandboxConfig);
   });
 
   await core.group(`Run postbuild hook for ${target.gemspec.name}`, async () =>
-    runHook(target.gemConfig.hooks?.postbuild, gemDir, hookEnv),
+    runHook(target.gemConfig.hooks?.postbuild, gemDir, hookEnv, sandboxConfig),
   );
 
   const sha256 = sha256hex(await fs.promises.readFile(result.path));
@@ -70,22 +82,24 @@ async function* buildTargets({
   workspace,
   targets,
   ruby,
+  sandboxConfig,
 }: {
   globalHooks: HookConfig | undefined;
   workspace: string;
   targets: Target[];
   ruby: string;
+  sandboxConfig: SandboxConfig;
 }): AsyncGenerator<BuildResult> {
   await core.group("Run global prebuild hook", async () =>
-    runHook(globalHooks?.prebuild, workspace),
+    runHook(globalHooks?.prebuild, workspace, undefined, sandboxConfig),
   );
 
   for (const target of targets) {
-    yield await build({ target, ruby });
+    yield await build({ target, ruby, sandboxConfig });
   }
 
   await core.group("Run global postbuild hook", async () =>
-    runHook(globalHooks?.postbuild, workspace),
+    runHook(globalHooks?.postbuild, workspace, undefined, sandboxConfig),
   );
 }
 
@@ -210,6 +224,13 @@ async function attestSbom({
   return { name: "sbom", bundle, sha256 };
 }
 
+const SandboxSchema = z
+  .union([z.literal("bubblewrap"), BooleanSchema])
+  .transform((v): "bubblewrap" | null => {
+    if (v === "bubblewrap") return "bubblewrap";
+    return v ? "bubblewrap" : null;
+  });
+
 async function run(): Promise<void> {
   const {
     "github-token": token,
@@ -218,6 +239,9 @@ async function run(): Promise<void> {
     sbom: sbomPath,
     "sbom-predicate-type": predicateTypeOverride,
     "verify-tag": verifyTagInput,
+    sandbox,
+    "sandbox-isolate-network": sandboxIsolateNetwork,
+    "sandbox-writable-paths": sandboxWritablePaths,
   } = getInputs({
     "github-token": z.string(),
     "retention-days": IntegerSchema.optional(),
@@ -225,9 +249,24 @@ async function run(): Promise<void> {
     sbom: z.string().optional(),
     "sbom-predicate-type": z.string().optional(),
     "verify-tag": BooleanSchema.default("true"),
+    sandbox: SandboxSchema.default("false"),
+    "sandbox-isolate-network": BooleanSchema.default("true"),
+    "sandbox-writable-paths": NewlineSeparatedSchema(
+      z
+        .string()
+        .refine((p) => !p.includes("\0"), "path must not contain null bytes")
+        .refine((p) => path.isAbsolute(p), "path must be absolute")
+        .transform((p) => path.resolve(p)),
+    ).default(""),
   });
 
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
+
+  const sandboxConfig: SandboxConfig = {
+    backend: sandbox,
+    isolateNetwork: sandboxIsolateNetwork,
+    writablePaths: [path.resolve(workspace), ...sandboxWritablePaths],
+  };
   const config = await loadConfigLocal(workspace);
   const tagInfo = parseTag(github.context.ref);
 
@@ -240,7 +279,12 @@ async function run(): Promise<void> {
     });
   }
 
-  const candidates = await resolveTargets(workspace, config, ruby);
+  const candidates = await resolveTargets(
+    workspace,
+    config,
+    ruby,
+    sandboxConfig,
+  );
   const targets = selectTargets(candidates, tagInfo);
   checkAllowedPushHosts(targets, config.registries);
   const results = await Array.fromAsync(
@@ -249,6 +293,7 @@ async function run(): Promise<void> {
       workspace,
       targets,
       ruby,
+      sandboxConfig,
     }),
   );
 

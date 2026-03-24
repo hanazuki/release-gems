@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { z } from "zod";
 import { runRuby } from "./ruby";
+import type { SandboxConfig } from "./sandbox";
 
 const GemspecSchema = z.object({
   name: z.string(),
@@ -13,6 +14,7 @@ export type Gemspec = z.infer<typeof GemspecSchema>;
 export async function loadGemspec(
   ruby: string,
   gemspecPath: string,
+  sandbox?: SandboxConfig,
 ): Promise<Gemspec> {
   const script = `\
 require 'rubygems'
@@ -33,6 +35,7 @@ return {
       script,
       args: [absGemspecPath],
       schema: GemspecSchema,
+      sandbox,
     });
   } catch (err) {
     throw new Error(`failed to inspect ${gemspecPath}`, { cause: err });
@@ -48,6 +51,7 @@ export async function buildGem(
   ruby: string,
   gemspecPath: string,
   outDir: string,
+  sandbox?: SandboxConfig,
 ): Promise<GemBuildResult> {
   const script = `\
 require 'rubygems'
@@ -66,6 +70,7 @@ return {path: gem_path}
       script,
       args: [absGemspecPath, path.resolve(outDir)],
       schema: GemBuildResultSchema,
+      sandbox,
     });
   } catch (err) {
     throw new Error(`failed to build gem from ${gemspecPath}`, { cause: err });

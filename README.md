@@ -98,6 +98,9 @@ All fields are optional. The config file itself is optional for single-gem repos
 | `sbom` | (none) | Path to an SBOM file to attach. If omitted, no SBOM attestation is created. Supported formats: CycloneDX JSON, SPDX 2.x JSON, SPDX 3.x JSON-LD. |
 | `sbom-predicate-type` | (auto-detected) | in-toto predicate type URI for the SBOM attestation. Provide this for formats that cannot be auto-detected. |
 | `verify-tag` | `true` | If true, requires the triggering tag to be an annotated tag with a signature verified by GitHub. |
+| `sandbox` | `false` | If set to `bubblewrap`, gem builds and hooks run inside a bubblewrap sandbox. Prevents subprocesses from accessing secrets via `/proc` or privilege escalation. Requires bubblewrap on the runner (e.g. `apt-get install bubblewrap`). |
+| `sandbox-isolate-network` | `true` | When sandboxing is enabled, if true, unshares the network namespace, blocking all network access inside the sandbox. |
+| `sandbox-writable-paths` | (none) | When sandboxing is enabled, a newline-separated list of absolute paths to mount as writable inside the sandbox. Blank lines are ignored. |
 
 ### `publish`
 

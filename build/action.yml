@@ -22,6 +22,25 @@ inputs:
     description: If true, requires the triggering tag to be an annotated tag with a valid signature.
     required: false
     default: "true"
+  sandbox:
+    description: >-
+      If set to 'bubblewrap', gem builds and hooks run inside a bubblewrap sandbox.
+      Prevents subprocesses from accessing secrets via /proc or privilege escalation.
+      Requires bubblewrap to be installed on the runner.
+    required: false
+    default: 'false'
+  sandbox-isolate-network:
+    description: >-
+      When sandboxing is enabled, if true, the network namespace is unshared,
+      blocking all network access inside the sandbox.
+    required: false
+    default: 'true'
+  sandbox-writable-paths:
+    description: >-
+      When sandboxing is enabled, a newline-separated list of absolute paths to
+      mount as writable inside the sandbox. Blank lines are ignored.
+    required: false
+    default: ''
 runs:
   using: node24
   main: index.js

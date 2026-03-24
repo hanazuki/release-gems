@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import * as core from "@actions/core";
 import { cleanEnv } from "./env";
+import { applySandbox, type SandboxConfig } from "./sandbox";
 
 export interface HookEnv {
   RELEASE_GEMS_GEM_NAME?: string;
@@ -15,32 +16,44 @@ export interface HookEnv {
  *
  * @param command  Shell command string, or null/undefined to skip.
  * @param cwd      Working directory for the subprocess.
- * @param env      Additional environment variables to inject.
+ * @param hookEnv  Additional environment variables to inject.
+ * @param sandbox  Optional sandbox configuration.
  */
 export async function runHook(
   command: string | null | undefined,
   cwd: string,
   hookEnv?: HookEnv,
+  sandbox?: SandboxConfig,
 ): Promise<void> {
   if (command == null) {
     return;
   }
 
-  const shell = process.env.SHELL ?? "/bin/sh";
+  const child = await (async () => {
+    const env = { ...cleanEnv(), ...hookEnv };
+    const { cmd, args, extraFds } = await applySandbox({
+      cmd: process.env.SHELL ?? "/bin/sh",
+      args: ["-c", command],
+      cwd,
+      config: sandbox,
+    });
+
+    try {
+      core.debug(`environment: ${JSON.stringify(env)}`);
+      core.debug(`command: ${JSON.stringify([cmd, ...args])}`);
+
+      return spawn(cmd, args, {
+        cwd,
+        env,
+        stdio: ["inherit", "inherit", "inherit", ...extraFds],
+      });
+    } finally {
+      for (const fd of extraFds) fd.close();
+    }
+  })();
 
   return new Promise<void>((resolve, reject) => {
-    const env = { ...cleanEnv(), ...hookEnv };
-    core.debug(`environment: ${JSON.stringify(env)}`);
-    core.debug(`command: ${command}`);
-    const child = spawn(shell, ["-c", command], {
-      cwd,
-      env,
-      stdio: "inherit",
-    });
-
-    child.on("error", (err) => {
-      reject(err);
-    });
+    child.on("error", reject);
 
     child.on("exit", (code) => {
       if (code === 0) {

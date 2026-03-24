@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Config, GemConfig } from "./config";
 import { type Gemspec, loadGemspec } from "./gem";
+import type { SandboxConfig } from "./sandbox";
 import type { TagInfo } from "./tag";
 
 export interface Target {
@@ -36,6 +37,7 @@ export async function resolveTargets(
   workspace: string,
   config: Config,
   ruby: string,
+  sandbox?: SandboxConfig,
 ): Promise<Target[]> {
   // Explicit empty array means "build nothing"; absent key or null means auto-detect.
   const gemConfigs: GemConfig[] =
@@ -44,7 +46,7 @@ export async function resolveTargets(
   return Promise.all(
     gemConfigs.map(async (gemConfig) => {
       const gemspecPath = findGemspec(workspace, gemConfig);
-      const gemspec = await loadGemspec(ruby, gemspecPath);
+      const gemspec = await loadGemspec(ruby, gemspecPath, sandbox);
       return { gemConfig, gemspecPath, gemspec };
     }),
   );

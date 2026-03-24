@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added `sandbox` option to the `build` action to isolate gem builds and hooks using bubblewrap, preventing subprocesses from accessing secrets.
 - Strip GitHub Actions secret variables (`INPUT_*`, `GITHUB_TOKEN`, `ACTIONS_*`) from the environment before spawning gem build and hook processes.
 - Attestation is automatically skipped when the build action runs in a pull request from a forked repository.
 - Build action now verifies by default that the triggering tag is an annotated tag with a GitHub-verified signature (Opt out by setting `verify-tag: false`).
