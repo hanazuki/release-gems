@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { default as artifactClient } from "@actions/artifact";
 import * as core from "@actions/core";
 import * as z from "zod";
+import * as codec from "./codec";
 import type { Gemspec } from "./gem";
 
 const FilenameSchema = z
@@ -23,6 +24,8 @@ const GemArtifactIndexSchema = z.object({
     }),
   ),
 });
+const GemArtifactIndexJson = codec.json(GemArtifactIndexSchema);
+
 export type GemArtifactIndex = z.infer<typeof GemArtifactIndexSchema>;
 
 export async function uploadGemArtifact({
@@ -39,7 +42,7 @@ export async function uploadGemArtifact({
   const artifactName = `release-gems-${gemspec.name}-${gemspec.platform}`;
   const indexPath = path.join(directory, "index.json");
 
-  await fs.promises.writeFile(indexPath, JSON.stringify(index));
+  await fs.promises.writeFile(indexPath, GemArtifactIndexJson.encode(index));
 
   await artifactClient.uploadArtifact(
     artifactName,
@@ -81,7 +84,7 @@ export async function downloadGemArtifacts(): Promise<
       );
       if (downloadPath == null) throw new Error("Something went wrong");
       const index = GemArtifactIndexSchema.parse(
-        JSON.parse(
+        GemArtifactIndexJson.decode(
           await fs.promises.readFile(path.join(downloadPath, "index.json"), {
             encoding: "utf8",
           }),

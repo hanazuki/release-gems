@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import * as z from "zod";
+import * as z from "zod/v4";
 
 function getInput<T extends z.core.$ZodType<unknown, string | undefined>>(
   name: string,
@@ -33,32 +33,8 @@ export function getInputs<
   return values as { [K in keyof T]: z.infer<T[K]> };
 }
 
-export const BooleanSchema = z.stringbool({
+export const booleanInput = z.stringbool({
   case: "sensitive",
   truthy: ["true", "True", "TRUE"],
   falsy: ["false", "False", "FALSE"],
 });
-
-export const IntegerSchema = z
-  .string()
-  .transform<number>((val, { addIssue }) => {
-    const intval = Number.parseInt(val, 10);
-    if (Number.isNaN(intval)) {
-      addIssue({
-        code: "custom",
-        message: "not parseable as an integer",
-      });
-      return z.NEVER;
-    }
-    return intval;
-  });
-
-export const NewlineSeparatedSchema = <
-  T extends z.core.$ZodType<unknown, string>,
->(
-  itemSchema: T,
-) =>
-  z
-    .string()
-    .transform((val) => val.split("\n").filter((line) => line.length > 0))
-    .pipe(z.array(itemSchema));

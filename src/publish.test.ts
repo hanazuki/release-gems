@@ -218,11 +218,11 @@ beforeEach(() => {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: async () => ({
-          name: "publisher",
-          rubygems_api_key: "mock-api-key",
-        }),
-        text: async () => "",
+        text: async () =>
+          JSON.stringify({
+            name: "publisher",
+            rubygems_api_key: "mock-api-key",
+          }),
       });
     }
     return Promise.resolve({

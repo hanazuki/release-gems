@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type * as github from "@actions/github";
-import * as yaml from "js-yaml";
 import { z } from "zod";
+import * as codec from "./codec";
 
 const HookConfigSchema = z.object({
   prebuild: z.string().optional(),
@@ -31,6 +31,8 @@ const ConfigSchema = z.object({
 });
 export type Config = z.infer<typeof ConfigSchema>;
 
+const ConfigYaml = codec.yaml(ConfigSchema);
+
 const DEFAULT_CONFIG: Config = ConfigSchema.parse({});
 
 function formatZodPath(path: PropertyKey[]): string {
@@ -44,7 +46,7 @@ function formatZodPath(path: PropertyKey[]): string {
 }
 
 export function parseConfig(content: string): Config {
-  const result = ConfigSchema.safeParse(yaml.load(content));
+  const result = ConfigYaml.safeParse(content);
   if (result.success) {
     return result.data;
   }

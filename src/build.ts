@@ -10,6 +10,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as z from "zod";
 import { uploadGemArtifact } from "./lib/artifact";
+import * as codec from "./lib/codec";
 import {
   type HookConfig,
   loadConfigLocal,
@@ -17,12 +18,7 @@ import {
 } from "./lib/config";
 import { buildGem, type GemBuildResult, type Gemspec } from "./lib/gem";
 import { runHook } from "./lib/hook";
-import {
-  BooleanSchema,
-  getInputs,
-  IntegerSchema,
-  NewlineSeparatedSchema,
-} from "./lib/input";
+import { booleanInput, getInputs } from "./lib/input";
 import { resolveTargets, selectTargets, type Target } from "./lib/project";
 import type { SandboxConfig } from "./lib/sandbox";
 import { loadSbom } from "./lib/sbom";
@@ -237,26 +233,28 @@ async function run(): Promise<void> {
     "sandbox-writable-paths": sandboxWritablePaths,
   } = getInputs({
     "github-token": z.string(),
-    "retention-days": IntegerSchema.optional(),
+    "retention-days": codec.stringToInt.optional(),
     ruby: z.string().default("ruby"),
     sbom: z.string().optional(),
     "sbom-predicate-type": z.string().optional(),
-    "verify-tag": BooleanSchema.default(true),
+    "verify-tag": booleanInput.default(true),
     sandbox: z
-      .union([z.literal("bubblewrap"), BooleanSchema])
-      .transform((v): "bubblewrap" | null => {
+      .union([z.literal("bubblewrap"), booleanInput])
+      .transform<SandboxConfig["backend"]>((v) => {
         if (v === "bubblewrap") return "bubblewrap";
         return v ? "bubblewrap" : null;
       })
       .default(null),
-    "sandbox-isolate-network": BooleanSchema.default(true),
-    "sandbox-writable-paths": NewlineSeparatedSchema(
-      z
-        .string()
-        .refine((p) => !p.includes("\0"), "path must not contain null bytes")
-        .refine((p) => path.isAbsolute(p), "path must be absolute")
-        .transform((p) => path.resolve(p)),
-    ).default([]),
+    "sandbox-isolate-network": booleanInput.default(true),
+    "sandbox-writable-paths": codec
+      .newlineSeparatedString(
+        z
+          .string()
+          .refine((p) => !p.includes("\0"), "path must not contain null bytes")
+          .refine((p) => path.isAbsolute(p), "path must be absolute")
+          .transform((p) => path.resolve(p)),
+      )
+      .default([]),
   });
 
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();

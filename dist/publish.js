@@ -25670,10 +25670,7 @@ const context$2 = new Context();
 function getOctokit(token, options, ...additionalPlugins) {
 	return new (GitHub.plugin(...additionalPlugins))(getOctokitOptions(token, options));
 }
-//#endregion
-//#region node_modules/.pnpm/zod@4.3.6/node_modules/zod/v4/core/core.js
-/** A special constant with type `never` */
-const NEVER = Object.freeze({ status: "aborted" });
+Object.freeze({ status: "aborted" });
 function $constructor(name, initializer, params) {
 	function init(inst, def) {
 		if (!inst._zod) Object.defineProperty(inst, "_zod", {
@@ -25756,6 +25753,17 @@ function cleanRegex(source) {
 	const start = source.startsWith("^") ? 1 : 0;
 	const end = source.endsWith("$") ? source.length - 1 : source.length;
 	return source.slice(start, end);
+}
+function floatSafeRemainder(val, step) {
+	const valDecCount = (val.toString().split(".")[1] || "").length;
+	const stepString = step.toString();
+	let stepDecCount = (stepString.split(".")[1] || "").length;
+	if (stepDecCount === 0 && /\d?e-\d?/.test(stepString)) {
+		const match = stepString.match(/\d?e-(\d?)/);
+		if (match?.[1]) stepDecCount = Number.parseInt(match[1]);
+	}
+	const decCount = valDecCount > stepDecCount ? valDecCount : stepDecCount;
+	return Number.parseInt(val.toFixed(decCount).replace(".", "")) % Number.parseInt(step.toFixed(decCount).replace(".", "")) / 10 ** decCount;
 }
 const EVALUATING = Symbol("evaluating");
 function defineLazy(object, key, getter) {
@@ -25855,7 +25863,13 @@ function optionalKeys(shape) {
 		return shape[k]._zod.optin === "optional" && shape[k]._zod.optout === "optional";
 	});
 }
-Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, -Number.MAX_VALUE, Number.MAX_VALUE;
+const NUMBER_FORMAT_RANGES = {
+	safeint: [Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER],
+	int32: [-2147483648, 2147483647],
+	uint32: [0, 4294967295],
+	float32: [-34028234663852886e22, 34028234663852886e22],
+	float64: [-Number.MAX_VALUE, Number.MAX_VALUE]
+};
 function pick(schema, mask) {
 	const currDef = schema._zod.def;
 	const checks = currDef.checks;
@@ -26225,6 +26239,7 @@ const string$1 = (params) => {
 	const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
 	return new RegExp(`^${regex}$`);
 };
+const integer = /^-?\d+$/;
 const number = /^-?\d+(?:\.\d+)?$/;
 const boolean = /^(?:true|false)$/i;
 const lowercase = /^[^A-Z]*$/;
@@ -26236,6 +26251,145 @@ const $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
 	inst._zod ?? (inst._zod = {});
 	inst._zod.def = def;
 	(_a = inst._zod).onattach ?? (_a.onattach = []);
+});
+const numericOriginMap = {
+	number: "number",
+	bigint: "bigint",
+	object: "date"
+};
+const $ZodCheckLessThan = /* @__PURE__ */ $constructor("$ZodCheckLessThan", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const origin = numericOriginMap[typeof def.value];
+	inst._zod.onattach.push((inst) => {
+		const bag = inst._zod.bag;
+		const curr = (def.inclusive ? bag.maximum : bag.exclusiveMaximum) ?? Number.POSITIVE_INFINITY;
+		if (def.value < curr) if (def.inclusive) bag.maximum = def.value;
+		else bag.exclusiveMaximum = def.value;
+	});
+	inst._zod.check = (payload) => {
+		if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
+		payload.issues.push({
+			origin,
+			code: "too_big",
+			maximum: typeof def.value === "object" ? def.value.getTime() : def.value,
+			input: payload.value,
+			inclusive: def.inclusive,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckGreaterThan = /* @__PURE__ */ $constructor("$ZodCheckGreaterThan", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	const origin = numericOriginMap[typeof def.value];
+	inst._zod.onattach.push((inst) => {
+		const bag = inst._zod.bag;
+		const curr = (def.inclusive ? bag.minimum : bag.exclusiveMinimum) ?? Number.NEGATIVE_INFINITY;
+		if (def.value > curr) if (def.inclusive) bag.minimum = def.value;
+		else bag.exclusiveMinimum = def.value;
+	});
+	inst._zod.check = (payload) => {
+		if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
+		payload.issues.push({
+			origin,
+			code: "too_small",
+			minimum: typeof def.value === "object" ? def.value.getTime() : def.value,
+			input: payload.value,
+			inclusive: def.inclusive,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckMultipleOf = /* @__PURE__ */ $constructor("$ZodCheckMultipleOf", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	inst._zod.onattach.push((inst) => {
+		var _a;
+		(_a = inst._zod.bag).multipleOf ?? (_a.multipleOf = def.value);
+	});
+	inst._zod.check = (payload) => {
+		if (typeof payload.value !== typeof def.value) throw new Error("Cannot mix number and bigint in multiple_of check.");
+		if (typeof payload.value === "bigint" ? payload.value % def.value === BigInt(0) : floatSafeRemainder(payload.value, def.value) === 0) return;
+		payload.issues.push({
+			origin: typeof payload.value,
+			code: "not_multiple_of",
+			divisor: def.value,
+			input: payload.value,
+			inst,
+			continue: !def.abort
+		});
+	};
+});
+const $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat", (inst, def) => {
+	$ZodCheck.init(inst, def);
+	def.format = def.format || "float64";
+	const isInt = def.format?.includes("int");
+	const origin = isInt ? "int" : "number";
+	const [minimum, maximum] = NUMBER_FORMAT_RANGES[def.format];
+	inst._zod.onattach.push((inst) => {
+		const bag = inst._zod.bag;
+		bag.format = def.format;
+		bag.minimum = minimum;
+		bag.maximum = maximum;
+		if (isInt) bag.pattern = integer;
+	});
+	inst._zod.check = (payload) => {
+		const input = payload.value;
+		if (isInt) {
+			if (!Number.isInteger(input)) {
+				payload.issues.push({
+					expected: origin,
+					format: def.format,
+					code: "invalid_type",
+					continue: false,
+					input,
+					inst
+				});
+				return;
+			}
+			if (!Number.isSafeInteger(input)) {
+				if (input > 0) payload.issues.push({
+					input,
+					code: "too_big",
+					maximum: Number.MAX_SAFE_INTEGER,
+					note: "Integers must be within the safe integer range.",
+					inst,
+					origin,
+					inclusive: true,
+					continue: !def.abort
+				});
+				else payload.issues.push({
+					input,
+					code: "too_small",
+					minimum: Number.MIN_SAFE_INTEGER,
+					note: "Integers must be within the safe integer range.",
+					inst,
+					origin,
+					inclusive: true,
+					continue: !def.abort
+				});
+				return;
+			}
+		}
+		if (input < minimum) payload.issues.push({
+			origin: "number",
+			input,
+			code: "too_small",
+			minimum,
+			inclusive: true,
+			inst,
+			continue: !def.abort
+		});
+		if (input > maximum) payload.issues.push({
+			origin: "number",
+			input,
+			code: "too_big",
+			maximum,
+			inclusive: true,
+			inst,
+			continue: !def.abort
+		});
+	};
 });
 const $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (inst, def) => {
 	var _a;
@@ -26837,6 +26991,30 @@ const $ZodJWT = /* @__PURE__ */ $constructor("$ZodJWT", (inst, def) => {
 			continue: !def.abort
 		});
 	};
+});
+const $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
+	$ZodType.init(inst, def);
+	inst._zod.pattern = inst._zod.bag.pattern ?? number;
+	inst._zod.parse = (payload, _ctx) => {
+		if (def.coerce) try {
+			payload.value = Number(payload.value);
+		} catch (_) {}
+		const input = payload.value;
+		if (typeof input === "number" && !Number.isNaN(input) && Number.isFinite(input)) return payload;
+		const received = typeof input === "number" ? Number.isNaN(input) ? "NaN" : !Number.isFinite(input) ? "Infinity" : void 0 : void 0;
+		payload.issues.push({
+			expected: "number",
+			code: "invalid_type",
+			input,
+			inst,
+			...received ? { received } : {}
+		});
+		return payload;
+	};
+});
+const $ZodNumberFormat = /* @__PURE__ */ $constructor("$ZodNumberFormat", (inst, def) => {
+	$ZodCheckNumberFormat.init(inst, def);
+	$ZodNumber.init(inst, def);
 });
 const $ZodBoolean = /* @__PURE__ */ $constructor("$ZodBoolean", (inst, def) => {
 	$ZodType.init(inst, def);
@@ -27952,6 +28130,16 @@ function _isoDuration(Class, params) {
 	});
 }
 /* @__NO_SIDE_EFFECTS__ */
+function _int(Class, params) {
+	return new Class({
+		type: "number",
+		check: "number_format",
+		abort: false,
+		format: "safeint",
+		...normalizeParams(params)
+	});
+}
+/* @__NO_SIDE_EFFECTS__ */
 function _unknown(Class) {
 	return new Class({ type: "unknown" });
 }
@@ -27960,6 +28148,50 @@ function _never(Class, params) {
 	return new Class({
 		type: "never",
 		...normalizeParams(params)
+	});
+}
+/* @__NO_SIDE_EFFECTS__ */
+function _lt(value, params) {
+	return new $ZodCheckLessThan({
+		check: "less_than",
+		...normalizeParams(params),
+		value,
+		inclusive: false
+	});
+}
+/* @__NO_SIDE_EFFECTS__ */
+function _lte(value, params) {
+	return new $ZodCheckLessThan({
+		check: "less_than",
+		...normalizeParams(params),
+		value,
+		inclusive: true
+	});
+}
+/* @__NO_SIDE_EFFECTS__ */
+function _gt(value, params) {
+	return new $ZodCheckGreaterThan({
+		check: "greater_than",
+		...normalizeParams(params),
+		value,
+		inclusive: false
+	});
+}
+/* @__NO_SIDE_EFFECTS__ */
+function _gte(value, params) {
+	return new $ZodCheckGreaterThan({
+		check: "greater_than",
+		...normalizeParams(params),
+		value,
+		inclusive: true
+	});
+}
+/* @__NO_SIDE_EFFECTS__ */
+function _multipleOf(value, params) {
+	return new $ZodCheckMultipleOf({
+		check: "multiple_of",
+		...normalizeParams(params),
+		value
 	});
 }
 /* @__NO_SIDE_EFFECTS__ */
@@ -28487,6 +28719,31 @@ const stringProcessor = (schema, ctx, _json, _params) => {
 		}))];
 	}
 };
+const numberProcessor = (schema, ctx, _json, _params) => {
+	const json = _json;
+	const { minimum, maximum, format, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
+	if (typeof format === "string" && format.includes("int")) json.type = "integer";
+	else json.type = "number";
+	if (typeof exclusiveMinimum === "number") if (ctx.target === "draft-04" || ctx.target === "openapi-3.0") {
+		json.minimum = exclusiveMinimum;
+		json.exclusiveMinimum = true;
+	} else json.exclusiveMinimum = exclusiveMinimum;
+	if (typeof minimum === "number") {
+		json.minimum = minimum;
+		if (typeof exclusiveMinimum === "number" && ctx.target !== "draft-04") if (exclusiveMinimum >= minimum) delete json.minimum;
+		else delete json.exclusiveMinimum;
+	}
+	if (typeof exclusiveMaximum === "number") if (ctx.target === "draft-04" || ctx.target === "openapi-3.0") {
+		json.maximum = exclusiveMaximum;
+		json.exclusiveMaximum = true;
+	} else json.exclusiveMaximum = exclusiveMaximum;
+	if (typeof maximum === "number") {
+		json.maximum = maximum;
+		if (typeof exclusiveMaximum === "number" && ctx.target !== "draft-04") if (exclusiveMaximum <= maximum) delete json.maximum;
+		else delete json.exclusiveMaximum;
+	}
+	if (typeof multipleOf === "number") json.multipleOf = multipleOf;
+};
 const booleanProcessor = (_schema, _ctx, json, _params) => {
 	json.type = "boolean";
 };
@@ -28965,6 +29222,39 @@ const ZodJWT = /* @__PURE__ */ $constructor("ZodJWT", (inst, def) => {
 	$ZodJWT.init(inst, def);
 	ZodStringFormat.init(inst, def);
 });
+const ZodNumber = /* @__PURE__ */ $constructor("ZodNumber", (inst, def) => {
+	$ZodNumber.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => numberProcessor(inst, ctx, json, params);
+	inst.gt = (value, params) => inst.check(/* @__PURE__ */ _gt(value, params));
+	inst.gte = (value, params) => inst.check(/* @__PURE__ */ _gte(value, params));
+	inst.min = (value, params) => inst.check(/* @__PURE__ */ _gte(value, params));
+	inst.lt = (value, params) => inst.check(/* @__PURE__ */ _lt(value, params));
+	inst.lte = (value, params) => inst.check(/* @__PURE__ */ _lte(value, params));
+	inst.max = (value, params) => inst.check(/* @__PURE__ */ _lte(value, params));
+	inst.int = (params) => inst.check(int$1(params));
+	inst.safe = (params) => inst.check(int$1(params));
+	inst.positive = (params) => inst.check(/* @__PURE__ */ _gt(0, params));
+	inst.nonnegative = (params) => inst.check(/* @__PURE__ */ _gte(0, params));
+	inst.negative = (params) => inst.check(/* @__PURE__ */ _lt(0, params));
+	inst.nonpositive = (params) => inst.check(/* @__PURE__ */ _lte(0, params));
+	inst.multipleOf = (value, params) => inst.check(/* @__PURE__ */ _multipleOf(value, params));
+	inst.step = (value, params) => inst.check(/* @__PURE__ */ _multipleOf(value, params));
+	inst.finite = () => inst;
+	const bag = inst._zod.bag;
+	inst.minValue = Math.max(bag.minimum ?? Number.NEGATIVE_INFINITY, bag.exclusiveMinimum ?? Number.NEGATIVE_INFINITY) ?? null;
+	inst.maxValue = Math.min(bag.maximum ?? Number.POSITIVE_INFINITY, bag.exclusiveMaximum ?? Number.POSITIVE_INFINITY) ?? null;
+	inst.isInt = (bag.format ?? "").includes("int") || Number.isSafeInteger(bag.multipleOf ?? .5);
+	inst.isFinite = true;
+	inst.format = bag.format ?? null;
+});
+const ZodNumberFormat = /* @__PURE__ */ $constructor("ZodNumberFormat", (inst, def) => {
+	$ZodNumberFormat.init(inst, def);
+	ZodNumber.init(inst, def);
+});
+function int$1(params) {
+	return /* @__PURE__ */ _int(ZodNumberFormat, params);
+}
 const ZodBoolean = /* @__PURE__ */ $constructor("ZodBoolean", (inst, def) => {
 	$ZodBoolean.init(inst, def);
 	ZodType.init(inst, def);
@@ -29268,6 +29558,15 @@ const ZodCodec = /* @__PURE__ */ $constructor("ZodCodec", (inst, def) => {
 	ZodPipe.init(inst, def);
 	$ZodCodec.init(inst, def);
 });
+function codec(in_, out, params) {
+	return new ZodCodec({
+		type: "pipe",
+		in: in_,
+		out,
+		transform: params.decode,
+		reverseTransform: params.encode
+	});
+}
 const ZodReadonly = /* @__PURE__ */ $constructor("ZodReadonly", (inst, def) => {
 	$ZodReadonly.init(inst, def);
 	ZodType.init(inst, def);
@@ -95629,37 +95928,6 @@ If the error persists, please check whether Actions and API requests are operati
 //#region node_modules/.pnpm/@actions+artifact@6.2.1/node_modules/@actions/artifact/lib/artifact.js
 const client = new DefaultArtifactClient();
 //#endregion
-//#region src/lib/artifact.ts
-const FilenameSchema = string().min(1).regex(/^[^/]+$/, { message: "should not contain /" });
-const GemArtifactIndexSchema = object({
-	gem: object({ filename: FilenameSchema }),
-	attestations: array(object({
-		filename: FilenameSchema,
-		mediaType: string(),
-		sha256: string()
-	}))
-});
-/**
-* Download all release-gems-* artifacts for the current workflow run.
-* Returns paths to directories containing the downloaded files.
-*/
-async function downloadGemArtifacts() {
-	const { artifacts } = await client.listArtifacts({ latest: true });
-	const gemArtifacts = artifacts.filter((a) => a.name.startsWith("release-gems-"));
-	debug(`artifacts to download: ${gemArtifacts}`);
-	return Promise.all(gemArtifacts.map(async (artifact) => {
-		const { downloadPath } = await client.downloadArtifact(artifact.id, { path: node_path.join(node_os.tmpdir(), `release-gems-dl-${artifact.id}`) });
-		if (downloadPath == null) throw new Error("Something went wrong");
-		const index = GemArtifactIndexSchema.parse(JSON.parse(await node_fs.promises.readFile(node_path.join(downloadPath, "index.json"), { encoding: "utf8" })));
-		if (!node_fs.existsSync(node_path.join(downloadPath, index.gem.filename))) throw new Error(`Gem '${index.gem.filename}' does not exist in the downloaded artifact archive #${artifact.id} '${artifact.name}'`);
-		for (const attestation of index.attestations) if (!node_fs.existsSync(node_path.join(downloadPath, attestation.filename))) throw new Error(`Attestation '${attestation.filename}' does not exist in the downloaded artifact archive #${artifact.id} '${artifact.name}'`);
-		return {
-			directory: downloadPath,
-			index
-		};
-	}));
-}
-//#endregion
 //#region node_modules/.pnpm/js-yaml@4.1.1/node_modules/js-yaml/dist/js-yaml.mjs
 /*! js-yaml 4.1.1 https://github.com/nodeca/js-yaml @license MIT */
 function isNothing(subject) {
@@ -97656,10 +97924,56 @@ function renamed(from, to) {
 }
 var load = loader.load;
 loader.loadAll;
-dumper.dump;
+var dump = dumper.dump;
 renamed("safeLoad", "load");
 renamed("safeLoadAll", "loadAll");
 renamed("safeDump", "dump");
+//#endregion
+//#region src/lib/codec.ts
+const json = (schema) => codec(string(), schema, {
+	decode: (str) => JSON.parse(str),
+	encode: (val) => JSON.stringify(val)
+});
+const yaml = (schema) => codec(string(), schema, {
+	decode: (str) => load(str),
+	encode: (val) => dump(val)
+});
+codec(string().regex(integer), int$1(), {
+	decode: (str) => Number.parseInt(str, 10),
+	encode: (num) => num.toString()
+});
+//#endregion
+//#region src/lib/artifact.ts
+const FilenameSchema = string().min(1).regex(/^[^/]+$/, { message: "should not contain /" });
+const GemArtifactIndexSchema = object({
+	gem: object({ filename: FilenameSchema }),
+	attestations: array(object({
+		filename: FilenameSchema,
+		mediaType: string(),
+		sha256: string()
+	}))
+});
+const GemArtifactIndexJson = json(GemArtifactIndexSchema);
+/**
+* Download all release-gems-* artifacts for the current workflow run.
+* Returns paths to directories containing the downloaded files.
+*/
+async function downloadGemArtifacts() {
+	const { artifacts } = await client.listArtifacts({ latest: true });
+	const gemArtifacts = artifacts.filter((a) => a.name.startsWith("release-gems-"));
+	debug(`artifacts to download: ${gemArtifacts}`);
+	return Promise.all(gemArtifacts.map(async (artifact) => {
+		const { downloadPath } = await client.downloadArtifact(artifact.id, { path: node_path.join(node_os.tmpdir(), `release-gems-dl-${artifact.id}`) });
+		if (downloadPath == null) throw new Error("Something went wrong");
+		const index = GemArtifactIndexSchema.parse(GemArtifactIndexJson.decode(await node_fs.promises.readFile(node_path.join(downloadPath, "index.json"), { encoding: "utf8" })));
+		if (!node_fs.existsSync(node_path.join(downloadPath, index.gem.filename))) throw new Error(`Gem '${index.gem.filename}' does not exist in the downloaded artifact archive #${artifact.id} '${artifact.name}'`);
+		for (const attestation of index.attestations) if (!node_fs.existsSync(node_path.join(downloadPath, attestation.filename))) throw new Error(`Attestation '${attestation.filename}' does not exist in the downloaded artifact archive #${artifact.id} '${artifact.name}'`);
+		return {
+			directory: downloadPath,
+			index
+		};
+	}));
+}
 //#endregion
 //#region src/lib/config.ts
 const HookConfigSchema = object({
@@ -97677,6 +97991,7 @@ const ConfigSchema = object({
 	hooks: HookConfigSchema.optional(),
 	registries: array(RegistryConfigSchema).default([{ host: "https://rubygems.org" }])
 });
+const ConfigYaml = yaml(ConfigSchema);
 const DEFAULT_CONFIG = ConfigSchema.parse({});
 function formatZodPath(path) {
 	return path.reduce((acc, segment) => {
@@ -97686,7 +98001,7 @@ function formatZodPath(path) {
 	}, "");
 }
 function parseConfig(content) {
-	const result = ConfigSchema.safeParse(load(content));
+	const result = ConfigYaml.safeParse(content);
 	if (result.success) return result.data;
 	const messages = result.error.issues.map((issue) => {
 		const path = formatZodPath(issue.path);
@@ -97749,23 +98064,12 @@ stringbool({
 		"FALSE"
 	]
 });
-string().transform((val, { addIssue }) => {
-	const intval = Number.parseInt(val, 10);
-	if (Number.isNaN(intval)) {
-		addIssue({
-			code: "custom",
-			message: "not parseable as an integer"
-		});
-		return NEVER;
-	}
-	return intval;
-});
 //#endregion
 //#region src/lib/registry.ts
-const ExchangeTokenResponseSchema = object({
+const ExchangeTokenResponseJson = json(object({
 	name: string(),
 	rubygems_api_key: string()
-});
+}));
 /**
 * Exchange a GitHub Actions OIDC token for a RubyGems.org short-lived API key
 * via the trusted publisher API.
@@ -97786,13 +98090,13 @@ async function exchangeOidcToken(aud = "rubygems.org") {
 		const body = await response.text();
 		throw new Error(`Failed to exchange OIDC token: HTTP ${response.status} - ${body}`);
 	}
-	const json = await response.json();
-	const result = ExchangeTokenResponseSchema.parse(json);
+	const json = await response.text();
+	const result = ExchangeTokenResponseJson.decode(json);
 	setSecret(result.rubygems_api_key);
-	info(`Credentials received: ${JSON.stringify(json)}`);
+	info(`Credentials received: ${json}`);
 	return result.rubygems_api_key;
 }
-const GemCredentialsSchema = record(string(), string());
+const GemCredentialsYaml = yaml(record(string(), string()));
 /**
 * Load gem credentials from the given credentials file path.
 */
@@ -97804,11 +98108,10 @@ async function loadGemCredentials(credentialsPath = node_path.join(node_os.homed
 		if (err.code === "ENOENT") throw new Error(`Credentials file not found ${credentialsPath}`);
 		throw err;
 	}
-	const parsed = load(content);
 	try {
-		return GemCredentialsSchema.parse(parsed);
-	} catch (_err) {
-		throw new Error(`Invalid credentials file ${credentialsPath}`);
+		return GemCredentialsYaml.decode(content);
+	} catch (cause) {
+		throw new Error(`Invalid credentials file ${credentialsPath}`, { cause });
 	}
 }
 /**

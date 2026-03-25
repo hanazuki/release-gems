@@ -2,14 +2,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
-import * as yaml from "js-yaml";
 import { z } from "zod";
+import * as codec from "./codec";
 import type { RegistryConfig } from "./config";
 
-const ExchangeTokenResponseSchema = z.object({
-  name: z.string(),
-  rubygems_api_key: z.string(),
-});
+const ExchangeTokenResponseJson = codec.json(
+  z.object({
+    name: z.string(),
+    rubygems_api_key: z.string(),
+  }),
+);
 
 export const RUBYGEMS_ORG = "rubygems.org";
 
@@ -43,16 +45,17 @@ export async function exchangeOidcToken(aud = "rubygems.org"): Promise<string> {
     );
   }
 
-  const json = await response.json();
-  const result = ExchangeTokenResponseSchema.parse(json);
+  const json = await response.text();
+  const result = ExchangeTokenResponseJson.decode(json);
   core.setSecret(result.rubygems_api_key);
 
-  core.info(`Credentials received: ${JSON.stringify(json)}`);
+  core.info(`Credentials received: ${json}`);
 
   return result.rubygems_api_key;
 }
 
 const GemCredentialsSchema = z.record(z.string(), z.string());
+const GemCredentialsYaml = codec.yaml(GemCredentialsSchema);
 
 /**
  * Load gem credentials from the given credentials file path.
@@ -70,11 +73,10 @@ export async function loadGemCredentials(
     throw err;
   }
 
-  const parsed = yaml.load(content);
   try {
-    return GemCredentialsSchema.parse(parsed);
-  } catch (_err) {
-    throw new Error(`Invalid credentials file ${credentialsPath}`);
+    return GemCredentialsYaml.decode(content);
+  } catch (cause) {
+    throw new Error(`Invalid credentials file ${credentialsPath}`, { cause });
   }
 }
 

@@ -1,6 +1,7 @@
 import * as childProcess from "node:child_process";
 import * as core from "@actions/core";
 import { z } from "zod";
+import * as codec from "./codec";
 import { cleanEnv } from "./env";
 import { applySandbox, type SandboxConfig } from "./sandbox";
 
@@ -74,9 +75,14 @@ end
         return;
       }
 
-      const envelope = z
-        .union([z.object({ data: schema }), z.object({ error: z.string() })])
-        .parse(JSON.parse(Buffer.concat(chunks).toString()));
+      const envelope = codec
+        .json(
+          z.union([
+            z.strictObject({ data: schema }),
+            z.strictObject({ error: z.string() }),
+          ]),
+        )
+        .decode(Buffer.concat(chunks).toString());
       if ("error" in envelope) {
         reject(new Error(envelope.error));
       } else {
