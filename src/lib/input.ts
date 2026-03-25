@@ -1,18 +1,16 @@
 import * as core from "@actions/core";
 import * as z from "zod";
 
-function getInput<
-  T extends z.ZodType<unknown, z.ZodTypeDef, string | undefined>,
->(name: string, schema: T) {
+function getInput<T extends z.core.$ZodType<unknown, string | undefined>>(
+  name: string,
+  schema: T,
+) {
   const value = core.getInput(name);
-  return schema.safeParse(value === "" ? undefined : value);
+  return z.safeParse(schema, value === "" ? undefined : value);
 }
 
 export function getInputs<
-  T extends Record<
-    string,
-    z.ZodType<unknown, z.ZodTypeDef, string | undefined>
-  >,
+  T extends Record<string, z.core.$ZodType<unknown, string | undefined>>,
 >(schemata: T): { [K in keyof T]: z.infer<T[K]> } {
   const values: Record<string, unknown> = {};
   const errors: string[] = [];
@@ -35,9 +33,11 @@ export function getInputs<
   return values as { [K in keyof T]: z.infer<T[K]> };
 }
 
-export const BooleanSchema = z
-  .enum(["true", "True", "TRUE", "false", "False", "FALSE"])
-  .transform((v) => v.toLowerCase() === "true");
+export const BooleanSchema = z.stringbool({
+  case: "sensitive",
+  truthy: ["true", "True", "TRUE"],
+  falsy: ["false", "False", "FALSE"],
+});
 
 export const IntegerSchema = z
   .string()
@@ -45,7 +45,7 @@ export const IntegerSchema = z
     const intval = Number.parseInt(val, 10);
     if (Number.isNaN(intval)) {
       addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "not parseable as an integer",
       });
       return z.NEVER;
@@ -54,7 +54,7 @@ export const IntegerSchema = z
   });
 
 export const NewlineSeparatedSchema = <
-  T extends z.ZodType<unknown, z.ZodTypeDef, string>,
+  T extends z.core.$ZodType<unknown, string>,
 >(
   itemSchema: T,
 ) =>

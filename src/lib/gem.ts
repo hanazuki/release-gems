@@ -7,7 +7,7 @@ const GemspecSchema = z.object({
   name: z.string(),
   version: z.string(),
   platform: z.string(),
-  metadata: z.record(z.string()),
+  metadata: z.record(z.string(), z.string()),
 });
 export type Gemspec = z.infer<typeof GemspecSchema>;
 

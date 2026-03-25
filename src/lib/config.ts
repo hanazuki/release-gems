@@ -18,7 +18,7 @@ const GemConfigSchema = z.object({
 export type GemConfig = z.infer<typeof GemConfigSchema>;
 
 const RegistryConfigSchema = z.object({
-  host: z.string().url(),
+  host: z.url({ protocol: /^https?$/ }),
 });
 export type RegistryConfig = z.infer<typeof RegistryConfigSchema>;
 
@@ -33,12 +33,13 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 const DEFAULT_CONFIG: Config = ConfigSchema.parse({});
 
-function formatZodPath(path: (string | number)[]): string {
+function formatZodPath(path: PropertyKey[]): string {
   return path.reduce<string>((acc, segment) => {
     if (typeof segment === "number") {
       return `${acc}[${segment}]`;
     }
-    return acc === "" ? segment : `${acc}.${segment}`;
+    const key = typeof segment === "symbol" ? String(segment) : segment;
+    return acc === "" ? key : `${acc}.${key}`;
   }, "");
 }
 

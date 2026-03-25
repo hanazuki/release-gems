@@ -4,7 +4,7 @@ import { z } from "zod";
 import { cleanEnv } from "./env";
 import { applySandbox, type SandboxConfig } from "./sandbox";
 
-export async function runRuby<T extends z.ZodTypeAny>({
+export async function runRuby<O>({
   ruby,
   cwd,
   args,
@@ -16,9 +16,9 @@ export async function runRuby<T extends z.ZodTypeAny>({
   cwd: string;
   script: string;
   args: string[];
-  schema: T;
+  schema: z.core.$ZodType<O, unknown>;
   sandbox?: SandboxConfig;
-}): Promise<z.infer<T>> {
+}): Promise<O> {
   const wrapped_script = `\
 require 'json'
 def write_result(payload) = IO.new(3).write JSON.generate(payload)
@@ -77,7 +77,6 @@ end
       const envelope = z
         .union([z.object({ data: schema }), z.object({ error: z.string() })])
         .parse(JSON.parse(Buffer.concat(chunks).toString()));
-
       if ("error" in envelope) {
         reject(new Error(envelope.error));
       } else {

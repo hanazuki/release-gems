@@ -224,13 +224,6 @@ async function attestSbom({
   return { name: "sbom", bundle, sha256 };
 }
 
-const SandboxSchema = z
-  .union([z.literal("bubblewrap"), BooleanSchema])
-  .transform((v): "bubblewrap" | null => {
-    if (v === "bubblewrap") return "bubblewrap";
-    return v ? "bubblewrap" : null;
-  });
-
 async function run(): Promise<void> {
   const {
     "github-token": token,
@@ -248,16 +241,22 @@ async function run(): Promise<void> {
     ruby: z.string().default("ruby"),
     sbom: z.string().optional(),
     "sbom-predicate-type": z.string().optional(),
-    "verify-tag": BooleanSchema.default("true"),
-    sandbox: SandboxSchema.default("false"),
-    "sandbox-isolate-network": BooleanSchema.default("true"),
+    "verify-tag": BooleanSchema.default(true),
+    sandbox: z
+      .union([z.literal("bubblewrap"), BooleanSchema])
+      .transform((v): "bubblewrap" | null => {
+        if (v === "bubblewrap") return "bubblewrap";
+        return v ? "bubblewrap" : null;
+      })
+      .default(null),
+    "sandbox-isolate-network": BooleanSchema.default(true),
     "sandbox-writable-paths": NewlineSeparatedSchema(
       z
         .string()
         .refine((p) => !p.includes("\0"), "path must not contain null bytes")
         .refine((p) => path.isAbsolute(p), "path must be absolute")
         .transform((p) => path.resolve(p)),
-    ).default(""),
+    ).default([]),
   });
 
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
