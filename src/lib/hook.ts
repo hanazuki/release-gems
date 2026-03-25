@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import * as core from "@actions/core";
-import { cleanEnv } from "./env";
-import { applySandbox, type SandboxConfig } from "./sandbox";
+import { cleanEnv } from "#/env";
+import { applySandbox, type SandboxConfig } from "#/sandbox";
 
 export interface HookEnv {
   RELEASE_GEMS_GEM_NAME?: string;

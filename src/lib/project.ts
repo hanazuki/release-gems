@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Config, GemConfig } from "./config";
-import { type Gemspec, loadGemspec } from "./gem";
-import type { SandboxConfig } from "./sandbox";
-import type { TagInfo } from "./tag";
+import type { Config, GemConfig } from "#/config";
+import { type Gemspec, loadGemspec } from "#/gem";
+import type { SandboxConfig } from "#/sandbox";
+import type { TagInfo } from "#/tag";
 
 export interface Target {
   gemConfig: GemConfig;

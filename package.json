@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "imports": {
+    "#/*": "./src/lib/*.ts"
+  },
   "engines": {
     "node": ">=24"
   },

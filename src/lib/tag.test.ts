@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchMessage, parseTag } from "./tag";
+import { fetchMessage, parseTag } from "#/tag";
 
 describe("parseTag", () => {
   describe("unified tags", () => {
