@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type * as github from "@actions/github";
 import { z } from "zod";
-import * as codec from "./codec";
+import * as codec from "#/codec";
 
 const HookConfigSchema = z.object({
   prebuild: z.string().optional(),

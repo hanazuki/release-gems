@@ -3,8 +3,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as core from "@actions/core";
 import { z } from "zod";
-import * as codec from "./codec";
-import type { RegistryConfig } from "./config";
+import * as codec from "#/codec";
+import type { RegistryConfig } from "#/config";
 
 const ExchangeTokenResponseJson = codec.json(
   z.object({

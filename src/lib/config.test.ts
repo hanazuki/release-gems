@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadConfigLocal, parseConfig } from "./config";
+import { loadConfigLocal, parseConfig } from "#/config";
 
 describe("parseConfig", () => {
   it("parses a full valid config", () => {

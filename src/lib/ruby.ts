@@ -1,9 +1,9 @@
 import * as childProcess from "node:child_process";
 import * as core from "@actions/core";
 import { z } from "zod";
-import * as codec from "./codec";
-import { cleanEnv } from "./env";
-import { applySandbox, type SandboxConfig } from "./sandbox";
+import * as codec from "#/codec";
+import { cleanEnv } from "#/env";
+import { applySandbox, type SandboxConfig } from "#/sandbox";
 
 export async function runRuby<O>({
   ruby,
