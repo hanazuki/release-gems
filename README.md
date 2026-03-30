@@ -4,6 +4,7 @@
 
 - No dependency on Bundler or Rake (so no need for `bundle install`); reduces supply-chain risks in the release process.
 - Separate steps for building and publishing to minimize permission scope.
+- Building gems in execution sandboxes. Sandbox blocks access to secret materials and network.
 - Integration with GitHub releases: gems are also uploaded to a GitHub release, where GitHub generates a release attestation. Release attestations can independently verify the package registry or a package cache is not tampered with.
 
 ## Prerequisites
@@ -11,7 +12,7 @@
 - The `build` action requires Ruby to be available on the runner (e.g. via [ruby/setup-ruby@v1](https://github.com/ruby/setup-ruby)). The three latest major versions of Ruby are tested.
 - For publishing to RubyGems.org: create an environment (say `rubygems.org`) in your GitHub repository, and configure the environment as a [trusted publisher](https://docs.rubygems.org/trusted-publishers/) on RubyGems.org.
 - The release environment and the release tags should be [protected](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment#deployment-protection-rules) to prevent unauthorized releases.
-- Optionally, [immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
+- Enable [immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases) to obtain release attestations.
 
 ## Quick Start
 
@@ -31,6 +32,11 @@ jobs:
       id-token: write  # To obtain an ID token to sign attestation
       attestations: write  # To store the attestations on GitHub
     steps:
+    - name: Install bubblewrap
+      run: |
+        sudo apt-get update && sudo apt-get install -y bubblewrap apparmor-profiles
+        sudo ln -s /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/
+        sudo systemctl reload apparmor
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
@@ -38,6 +44,8 @@ jobs:
       with:
         ruby-version: ruby
     - uses: release-gems/action/build@HASH
+      with:
+        sandbox: bubblewrap
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')
@@ -51,7 +59,7 @@ jobs:
     - uses: release-gems/action/publish@HASH
 ```
 
-Replace `HASH` with the commit SHA or tag of the release-gems release you want to pin to.
+Replace `HASH` with the commit SHA or tag of the release-gems release you want to pin to. Because this repository releases actions as immutable releases, pinning to a tag is as safe as pinning to a commit hash, unless GitHub as a platform is compromised.
 
 ## Releasing
 
