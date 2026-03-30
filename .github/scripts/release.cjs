@@ -36,12 +36,4 @@ module.exports = async (params) => {
     prerelease,
     draft: false,
   });
-
-  if (!prerelease) {
-    await github.rest.git.updateRef({
-      ...context.repo,
-      ref: ref.ref.replace(/^refs\//, "").split(".")[0],
-      sha: tag.sha,
-    });
-  }
 };

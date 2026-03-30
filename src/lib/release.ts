@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import type * as github from "@actions/github";
-import type { TagInfo } from "./tag";
+import type { TagInfo } from "#/tag";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 

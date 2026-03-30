@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { z } from "zod";
-import { runRuby } from "./ruby";
-import type { SandboxConfig } from "./sandbox";
+import { runRuby } from "#/ruby";
+import type { SandboxConfig } from "#/sandbox";
 
 const GemspecSchema = z.object({
   name: z.string(),

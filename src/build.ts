@@ -10,20 +10,20 @@ import {
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as z from "zod";
-import { uploadGemArtifact } from "./lib/artifact";
-import * as codec from "./lib/codec";
+import { uploadGemArtifact } from "#/artifact";
+import * as codec from "#/codec";
 import {
   type HookConfig,
   loadConfigLocal,
   type RegistryConfig,
-} from "./lib/config";
-import { buildGem, type GemBuildResult, type Gemspec } from "./lib/gem";
-import { runHook } from "./lib/hook";
-import { booleanInput, getInputs } from "./lib/input";
-import { resolveTargets, selectTargets, type Target } from "./lib/project";
-import { applySandbox, type SandboxConfig } from "./lib/sandbox";
-import { loadSbom } from "./lib/sbom";
-import { parseTag, verifyTag } from "./lib/tag";
+} from "#/config";
+import { buildGem, type GemBuildResult, type Gemspec } from "#/gem";
+import { runHook } from "#/hook";
+import { booleanInput, getInputs } from "#/input";
+import { resolveTargets, selectTargets, type Target } from "#/project";
+import { applySandbox, type SandboxConfig } from "#/sandbox";
+import { loadSbom } from "#/sbom";
+import { parseTag, verifyTag } from "#/tag";
 
 const ATTESTATION_HASH_DIGITS = 8;
 

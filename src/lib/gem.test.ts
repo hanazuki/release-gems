@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { buildGem, loadGemspec } from "./gem";
+import { buildGem, loadGemspec } from "#/gem";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GEMSPEC_PATH = path.resolve(__dirname, "../../fixtures/test_gem.gemspec");

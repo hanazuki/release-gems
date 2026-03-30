@@ -4,8 +4,8 @@ import * as path from "node:path";
 import { default as artifactClient } from "@actions/artifact";
 import * as core from "@actions/core";
 import * as z from "zod";
-import * as codec from "./codec";
-import type { Gemspec } from "./gem";
+import * as codec from "#/codec";
+import type { Gemspec } from "#/gem";
 
 const FilenameSchema = z
   .string()

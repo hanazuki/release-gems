@@ -1,7 +1,7 @@
 import * as os from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { runRuby } from "./ruby";
+import { runRuby } from "#/ruby";
 
 const RUBY = "ruby";
 const CWD = os.tmpdir();
