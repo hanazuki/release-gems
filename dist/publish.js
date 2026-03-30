@@ -98345,11 +98345,11 @@ async function run() {
 				release,
 				artifacts
 			});
-			await finalize({
+			if (!(await finalize({
 				octokit,
 				repo,
 				release
-			});
+			})).immutable) warning("Immutable releases are not enabled for this repository. Enable them in repository settings to strengthen supply-chain security.");
 		}
 	});
 	const credentials = registries.some((r) => new URL(r.host).hostname !== "rubygems.org") ? await loadGemCredentials() : void 0;

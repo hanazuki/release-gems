@@ -7,6 +7,7 @@ const {
   mockGetInput,
   mockSetFailed,
   mockGetIDToken,
+  mockWarning,
   mockGetOctokit,
   mockGetReleaseByTag,
   mockCreateRelease,
@@ -52,6 +53,7 @@ const {
       vi.fn<(name: string, options?: { required?: boolean }) => string>(),
     mockSetFailed: vi.fn(),
     mockGetIDToken: vi.fn<() => Promise<string>>(),
+    mockWarning: vi.fn(),
     mockGetOctokit: vi.fn(),
     mockGetReleaseByTag,
     mockCreateRelease,
@@ -72,6 +74,7 @@ vi.mock("@actions/core", async (importOriginal) => ({
   getInput: mockGetInput,
   setFailed: mockSetFailed,
   getIDToken: mockGetIDToken,
+  warning: mockWarning,
 }));
 
 vi.mock("@actions/github", async (importOriginal) => {
@@ -204,7 +207,9 @@ beforeEach(() => {
   mockGetReleaseByTag.mockRejectedValue({ status: 404 });
   mockCreateRelease.mockResolvedValue({ data: makeRelease(42, true) });
   mockUploadReleaseAsset.mockResolvedValue({ data: {} });
-  mockUpdateRelease.mockResolvedValue({ data: {} });
+  mockUpdateRelease.mockResolvedValue({
+    data: { ...makeRelease(42, false), immutable: true },
+  });
 
   // No config on GitHub API by default → falls back to rubygems.org.
   mockGetContent.mockRejectedValue({ status: 404 });
@@ -602,6 +607,43 @@ describe("publish action", () => {
       expect.objectContaining({
         body: "Release notes",
       }),
+    );
+  });
+
+  it("emits warning when finalized release is not immutable (immutable: false)", async () => {
+    mockUpdateRelease.mockResolvedValue({
+      data: { ...makeRelease(42, false), immutable: false },
+    });
+
+    await loadPublish();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockWarning).toHaveBeenCalledWith(
+      "Immutable releases are not enabled for this repository. " +
+        "Enable them in repository settings to strengthen supply-chain security.",
+    );
+  });
+
+  it("does not emit warning when finalized release is immutable (immutable: true)", async () => {
+    mockUpdateRelease.mockResolvedValue({
+      data: { ...makeRelease(42, false), immutable: true },
+    });
+
+    await loadPublish();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockWarning).not.toHaveBeenCalled();
+  });
+
+  it("emits warning when finalized release has no immutable field (immutable: undefined)", async () => {
+    mockUpdateRelease.mockResolvedValue({ data: makeRelease(42, false) });
+
+    await loadPublish();
+
+    expect(mockSetFailed).not.toHaveBeenCalled();
+    expect(mockWarning).toHaveBeenCalledWith(
+      "Immutable releases are not enabled for this repository. " +
+        "Enable them in repository settings to strengthen supply-chain security.",
     );
   });
 

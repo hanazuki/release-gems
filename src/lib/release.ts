@@ -7,6 +7,7 @@ type Octokit = ReturnType<typeof github.getOctokit>;
 export interface Release {
   id: number;
   draft: boolean;
+  immutable?: boolean;
   assets: Array<{ name: string }>;
   upload_url: string;
 }

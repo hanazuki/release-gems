@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The `publish` action now warns when immutable releases are not enabled for the repository.
 - Added `install-bubblewrap` input to the `build` action to automatically install bubblewrap and configure AppArmor before building (defaults to `true` when `sandbox: bubblewrap`).
 
 ## v1.1.0 (2026-03-24)
