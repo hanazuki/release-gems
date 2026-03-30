@@ -142,11 +142,13 @@ async function run(): Promise<void> {
     });
     if (release.draft) {
       await pushToRelease({ octokit, repo, release, artifacts });
-      await rel.finalize({
-        octokit,
-        repo,
-        release,
-      });
+      const finalized = await rel.finalize({ octokit, repo, release });
+      if (!finalized.immutable) {
+        core.warning(
+          "Immutable releases are not enabled for this repository. " +
+            "Enable them in repository settings to strengthen supply-chain security.",
+        );
+      }
     }
   });
 
