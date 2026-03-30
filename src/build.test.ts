@@ -584,6 +584,8 @@ describe("build action", () => {
             return "ruby";
           case "sandbox":
             return "bubblewrap";
+          case "install-bubblewrap":
+            return "false";
           default:
             return "";
         }
@@ -644,6 +646,8 @@ describe("build action", () => {
             case "sandbox":
               return "bubblewrap";
             case "sandbox-isolate-network":
+              return "false";
+            case "install-bubblewrap":
               return "false";
             default:
               return "";
