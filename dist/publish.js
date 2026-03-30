@@ -2120,7 +2120,7 @@
 *
 * ---
 *
-* brace-expansion -- 2.0.2
+* brace-expansion -- 2.0.3
 *
 * ## License (MIT)
 *
@@ -64721,7 +64721,7 @@ var require_balanced_match = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	}
 }));
 //#endregion
-//#region node_modules/.pnpm/brace-expansion@2.0.2/node_modules/brace-expansion/index.js
+//#region node_modules/.pnpm/brace-expansion@2.0.3/node_modules/brace-expansion/index.js
 var require_brace_expansion = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var balanced = require_balanced_match();
 	module.exports = expandTop;
@@ -64812,7 +64812,7 @@ var require_brace_expansion = /* @__PURE__ */ __commonJSMin(((exports, module) =
 				var x = numeric(n[0]);
 				var y = numeric(n[1]);
 				var width = Math.max(n[0].length, n[1].length);
-				var incr = n.length == 3 ? Math.abs(numeric(n[2])) : 1;
+				var incr = n.length == 3 ? Math.max(Math.abs(numeric(n[2])), 1) : 1;
 				var test = lte;
 				if (y < x) {
 					incr *= -1;
