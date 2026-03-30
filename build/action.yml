@@ -41,6 +41,11 @@ inputs:
       mount as writable inside the sandbox. Blank lines are ignored.
     required: false
     default: ''
+  install-bubblewrap:
+    description: >-
+      If true, installs bubblewrap and configures AppArmor before building.
+      Defaults to true when sandbox is bubblewrap.
+    required: false
 runs:
   using: node24
   main: ../dist/build.js

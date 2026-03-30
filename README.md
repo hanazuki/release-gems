@@ -32,11 +32,6 @@ jobs:
       id-token: write  # To obtain an ID token to sign attestation
       attestations: write  # To store the attestations on GitHub
     steps:
-    - name: Install bubblewrap
-      run: |
-        sudo apt-get update && sudo apt-get install -y bubblewrap apparmor-profiles
-        sudo ln -s /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/
-        sudo systemctl reload apparmor
     - uses: actions/checkout@v4
       with:
         persist-credentials: false

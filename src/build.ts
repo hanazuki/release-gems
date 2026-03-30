@@ -1,3 +1,4 @@
+import * as childProcess from "node:child_process";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -20,7 +21,7 @@ import { buildGem, type GemBuildResult, type Gemspec } from "./lib/gem";
 import { runHook } from "./lib/hook";
 import { booleanInput, getInputs } from "./lib/input";
 import { resolveTargets, selectTargets, type Target } from "./lib/project";
-import type { SandboxConfig } from "./lib/sandbox";
+import { applySandbox, type SandboxConfig } from "./lib/sandbox";
 import { loadSbom } from "./lib/sbom";
 import { parseTag, verifyTag } from "./lib/tag";
 
@@ -220,6 +221,60 @@ async function attestSbom({
   return { name: "sbom", bundle, sha256 };
 }
 
+async function setupBubblewrap(sandboxConfig: SandboxConfig): Promise<void> {
+  if (!fs.existsSync("/usr/bin/apt-get")) {
+    throw new Error(
+      "install-bubblewrap requires a Debian/Ubuntu runner with apt-get available",
+    );
+  }
+
+  core.info("Installing bubblewrap...");
+  await new Promise<void>((resolve, reject) => {
+    const script = [
+      "apt-get update",
+      "apt-get install -y bubblewrap apparmor-profiles",
+      "ln -s /usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/",
+      "systemctl reload apparmor",
+    ].join("\n");
+    const child = childProcess.spawn("sudo", ["bash", "-uexs"], {
+      stdio: ["pipe", "inherit", "inherit"],
+    });
+    child.stdin!.end(script);
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) resolve();
+      else
+        reject(new Error(`bubblewrap installation exited with code ${code}`));
+    });
+  });
+
+  core.info("Verifying bubblewrap...");
+  const { cmd, args, extraFds } = await applySandbox({
+    cmd: "/bin/echo",
+    args: ["It works!"],
+    cwd: process.cwd(),
+    config: sandboxConfig,
+  });
+  await new Promise<void>((resolve, reject) => {
+    const child = (() => {
+      try {
+        return childProcess.spawn(cmd, args, {
+          stdio: ["inherit", "inherit", "inherit", ...extraFds],
+        });
+      } finally {
+        for (const fd of extraFds) fd.close();
+      }
+    })();
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`bwrap verification exited with code ${code}`));
+    });
+  });
+
+  core.info("Bubblewrap verification passed.");
+}
+
 async function run(): Promise<void> {
   const {
     "github-token": token,
@@ -231,6 +286,7 @@ async function run(): Promise<void> {
     sandbox,
     "sandbox-isolate-network": sandboxIsolateNetwork,
     "sandbox-writable-paths": sandboxWritablePaths,
+    "install-bubblewrap": installBubblewrap,
   } = getInputs({
     "github-token": z.string(),
     "retention-days": codec.stringToInt.optional(),
@@ -255,6 +311,7 @@ async function run(): Promise<void> {
           .transform((p) => path.resolve(p)),
       )
       .default([]),
+    "install-bubblewrap": booleanInput.optional(),
   });
 
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
@@ -264,6 +321,11 @@ async function run(): Promise<void> {
     isolateNetwork: sandboxIsolateNetwork,
     writablePaths: [path.resolve(workspace), ...sandboxWritablePaths],
   };
+
+  if (installBubblewrap ?? sandbox === "bubblewrap") {
+    await core.group("Set up bubblewrap", () => setupBubblewrap(sandboxConfig));
+  }
+
   const config = await loadConfigLocal(workspace);
   const tagInfo = parseTag(github.context.ref);
 
