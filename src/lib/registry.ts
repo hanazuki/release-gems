@@ -66,11 +66,10 @@ export async function loadGemCredentials(
   let content: string;
   try {
     content = await fs.promises.readFile(credentialsPath, "utf8");
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      throw new Error(`Credentials file not found ${credentialsPath}`);
-    }
-    throw err;
+  } catch (cause) {
+    throw new Error(`Unable to load gem credentials from ${credentialsPath}`, {
+      cause,
+    });
   }
 
   try {

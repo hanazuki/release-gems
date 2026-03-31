@@ -16,16 +16,17 @@ export async function loadSbom(
   let content: string;
   try {
     content = await fs.promises.readFile(path, { encoding: "utf8" });
-  } catch {
-    throw new Error(`SBOM file not found: ${path}`);
+  } catch (cause) {
+    throw new Error(`SBOM file not found: ${path}`, { cause });
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
-  } catch {
+  } catch (cause) {
     throw new Error(
       "SBOM file is not valid JSON. Only JSON-format SBOMs are supported.",
+      { cause },
     );
   }
 

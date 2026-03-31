@@ -29,7 +29,7 @@ ${script}
 end
   write_result data: func.call
 rescue => e
-  write_result error: "#{e.class}: #{e.message}"
+  write_result error: e.full_message(highlight: false, order: :bottom)
 end
 `;
 

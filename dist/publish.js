@@ -26068,7 +26068,7 @@ function flattenError(error, mapper = (issue) => issue.message) {
 		fieldErrors
 	};
 }
-function formatError$1(error, mapper = (issue) => issue.message) {
+function formatError$2(error, mapper = (issue) => issue.message) {
 	const fieldErrors = { _errors: [] };
 	const processError = (error) => {
 		for (const issue of error.issues) if (issue.code === "invalid_union" && issue.errors.length) issue.errors.map((issues) => processError({ issues }));
@@ -28971,7 +28971,7 @@ const initializer = (inst, issues) => {
 	$ZodError.init(inst, issues);
 	inst.name = "ZodError";
 	Object.defineProperties(inst, {
-		format: { value: (mapper) => formatError$1(inst, mapper) },
+		format: { value: (mapper) => formatError$2(inst, mapper) },
 		flatten: { value: (mapper) => flattenError(inst, mapper) },
 		addIssue: { value: (issue) => {
 			inst.issues.push(issue);
@@ -95968,7 +95968,7 @@ var common = {
 	isNegativeZero,
 	extend
 };
-function formatError(exception, compact) {
+function formatError$1(exception, compact) {
 	var where = "", message = exception.reason || "(unknown reason)";
 	if (!exception.mark) return message;
 	if (exception.mark.name) where += "in \"" + exception.mark.name + "\" ";
@@ -95981,14 +95981,14 @@ function YAMLException$1(reason, mark) {
 	this.name = "YAMLException";
 	this.reason = reason;
 	this.mark = mark;
-	this.message = formatError(this, false);
+	this.message = formatError$1(this, false);
 	if (Error.captureStackTrace) Error.captureStackTrace(this, this.constructor);
 	else this.stack = (/* @__PURE__ */ new Error()).stack || "";
 }
 YAMLException$1.prototype = Object.create(Error.prototype);
 YAMLException$1.prototype.constructor = YAMLException$1;
 YAMLException$1.prototype.toString = function toString(compact) {
-	return this.name + ": " + formatError(this, compact);
+	return this.name + ": " + formatError$1(this, compact);
 };
 var exception = YAMLException$1;
 function getLine(buffer, lineStart, lineEnd, position, maxLineLength) {
@@ -98029,10 +98029,34 @@ async function loadConfig(workspace, context, octokit) {
 		})).data;
 		if (!Array.isArray(data) && data.type === "file" && data.content) return parseConfig(Buffer.from(data.content, "base64").toString("utf8"));
 		throw new Error("Something went wrong when fetching .github/release-gems.yml");
-	} catch (err) {
-		if (err.status === 404) return DEFAULT_CONFIG;
-		throw err;
+	} catch (cause) {
+		if (cause.status === 404) return DEFAULT_CONFIG;
+		throw new Error("Error while fetching .github/release-gems.yml from GitHub", { cause });
 	}
+}
+//#endregion
+//#region src/lib/error.ts
+function appendError(lines, prefix, err, maxDepth, indent) {
+	const isError = err instanceof Error;
+	const [firstLine, ...restLines] = (isError ? err.message : String(err)).split("\n");
+	lines.push(`${indent}${prefix}${firstLine}`);
+	for (const line of restLines) lines.push(`${indent}${line}`);
+	if (!isError) return;
+	const childIndent = `${indent}| `;
+	const hasCause = err.cause !== void 0;
+	const isAggregate = err instanceof AggregateError && err.errors.length > 0;
+	if (!isAggregate && !hasCause) return;
+	if (maxDepth <= 0) {
+		lines.push(`${childIndent}(further causes omitted)`);
+		return;
+	}
+	if (isAggregate) for (const [i, subErr] of err.errors.entries()) appendError(lines, `${i + 1}. `, subErr, maxDepth - 1, childIndent);
+	if (hasCause) appendError(lines, "Caused by: ", err.cause, maxDepth - 1, childIndent);
+}
+function formatError(err, maxDepth = 10) {
+	const lines = [];
+	appendError(lines, "", err, maxDepth, "");
+	return lines.join("\n");
 }
 //#endregion
 //#region src/lib/input.ts
@@ -98048,7 +98072,7 @@ function getInputs(schemata) {
 		if (result.success) values[name] = result.data;
 		else for (const issue of result.error.issues) errors.push(`${name}: ${issue.message}`);
 	}
-	if (errors.length > 0) throw new Error(`Invalid inputs:\n${errors.join("\n")}`);
+	if (errors.length > 0) throw new AggregateError(errors, "Invalid inputs");
 	return values;
 }
 stringbool({
@@ -98104,9 +98128,8 @@ async function loadGemCredentials(credentialsPath = node_path.join(node_os.homed
 	let content;
 	try {
 		content = await node_fs.promises.readFile(credentialsPath, "utf8");
-	} catch (err) {
-		if (err.code === "ENOENT") throw new Error(`Credentials file not found ${credentialsPath}`);
-		throw err;
+	} catch (cause) {
+		throw new Error(`Unable to load gem credentials from ${credentialsPath}`, { cause });
 	}
 	try {
 		return GemCredentialsYaml.decode(content);
@@ -98358,7 +98381,7 @@ async function run() {
 	});
 }
 const completed = run().catch((err) => {
-	setFailed(err instanceof Error ? err.message : String(err));
+	setFailed(formatError(err));
 });
 //#endregion
 exports.completed = completed;

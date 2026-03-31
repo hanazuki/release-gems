@@ -17,6 +17,7 @@ import {
   loadConfigLocal,
   type RegistryConfig,
 } from "#/config";
+import { formatError } from "#/error";
 import { buildGem, type GemBuildResult, type Gemspec } from "#/gem";
 import { runHook } from "#/hook";
 import { booleanInput, getInputs } from "#/input";
@@ -401,5 +402,5 @@ async function run(): Promise<void> {
 }
 
 export const completed = run().catch((err) => {
-  core.setFailed(err instanceof Error ? err.message : String(err));
+  core.setFailed(formatError(err));
 });

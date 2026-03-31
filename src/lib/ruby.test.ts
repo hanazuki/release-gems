@@ -38,7 +38,7 @@ describe("runRuby", () => {
         script: `raise "something went wrong"`,
         schema: z.object({}),
       }),
-    ).rejects.toThrow("RuntimeError: something went wrong");
+    ).rejects.toThrow(/something went wrong/);
   });
 
   describe("environment cleaning", () => {

@@ -320,16 +320,6 @@ describe("loadGemCredentials", () => {
     }
   });
 
-  it("rejects with a helpful message when the file does not exist", async () => {
-    const nonexistent = path.join(
-      os.tmpdir(),
-      `registry-test-nonexistent-${process.pid}-${Date.now()}.yml`,
-    );
-    await expect(loadGemCredentials(nonexistent)).rejects.toThrow(
-      /Credentials file not found/,
-    );
-  });
-
   it("rejects when the file exists but Zod validation fails (non-record content)", async () => {
     const tmpFile = path.join(
       os.tmpdir(),

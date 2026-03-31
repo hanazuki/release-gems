@@ -27,7 +27,7 @@ export function getInputs<
   }
 
   if (errors.length > 0) {
-    throw new Error(`Invalid inputs:\n${errors.join("\n")}`);
+    throw new AggregateError(errors, "Invalid inputs");
   }
 
   return values as { [K in keyof T]: z.infer<T[K]> };
