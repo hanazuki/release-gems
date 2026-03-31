@@ -97,8 +97,11 @@ export async function loadConfig(
     throw new Error(
       "Something went wrong when fetching .github/release-gems.yml",
     );
-  } catch (err) {
-    if ((err as { status?: number }).status === 404) return DEFAULT_CONFIG;
-    throw err;
+  } catch (cause) {
+    if ((cause as { status?: number }).status === 404) return DEFAULT_CONFIG;
+    throw new Error(
+      "Error while fetching .github/release-gems.yml from GitHub",
+      { cause },
+    );
   }
 }

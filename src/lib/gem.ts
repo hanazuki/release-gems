@@ -37,8 +37,8 @@ return {
       schema: GemspecSchema,
       sandbox,
     });
-  } catch (err) {
-    throw new Error(`failed to inspect ${gemspecPath}`, { cause: err });
+  } catch (cause) {
+    throw new Error(`failed to inspect ${gemspecPath}`, { cause });
   }
 }
 
@@ -72,7 +72,7 @@ return {path: gem_path}
       schema: GemBuildResultSchema,
       sandbox,
     });
-  } catch (err) {
-    throw new Error(`failed to build gem from ${gemspecPath}`, { cause: err });
+  } catch (cause) {
+    throw new Error(`failed to build gem from ${gemspecPath}`, { cause });
   }
 }

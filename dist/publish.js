@@ -98029,9 +98029,9 @@ async function loadConfig(workspace, context, octokit) {
 		})).data;
 		if (!Array.isArray(data) && data.type === "file" && data.content) return parseConfig(Buffer.from(data.content, "base64").toString("utf8"));
 		throw new Error("Something went wrong when fetching .github/release-gems.yml");
-	} catch (err) {
-		if (err.status === 404) return DEFAULT_CONFIG;
-		throw err;
+	} catch (cause) {
+		if (cause.status === 404) return DEFAULT_CONFIG;
+		throw new Error("Error while fetching .github/release-gems.yml from GitHub", { cause });
 	}
 }
 //#endregion
@@ -98072,7 +98072,7 @@ function getInputs(schemata) {
 		if (result.success) values[name] = result.data;
 		else for (const issue of result.error.issues) errors.push(`${name}: ${issue.message}`);
 	}
-	if (errors.length > 0) throw new Error(`Invalid inputs:\n${errors.join("\n")}`);
+	if (errors.length > 0) throw new AggregateError(errors, "Invalid inputs");
 	return values;
 }
 stringbool({
@@ -98128,9 +98128,8 @@ async function loadGemCredentials(credentialsPath = node_path.join(node_os.homed
 	let content;
 	try {
 		content = await node_fs.promises.readFile(credentialsPath, "utf8");
-	} catch (err) {
-		if (err.code === "ENOENT") throw new Error(`Credentials file not found ${credentialsPath}`);
-		throw err;
+	} catch (cause) {
+		throw new Error(`Unable to load gem credentials from ${credentialsPath}`, { cause });
 	}
 	try {
 		return GemCredentialsYaml.decode(content);
