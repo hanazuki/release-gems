@@ -149,6 +149,7 @@ beforeEach(() => {
   fs.writeFileSync(
     path.join(downloadDir1, "index.json"),
     JSON.stringify({
+      version: "2026-03-19",
       gem: { filename: "foo-1.0.0.gem" },
       attestations: [
         {
@@ -167,6 +168,7 @@ beforeEach(() => {
   fs.writeFileSync(
     path.join(downloadDir2, "index.json"),
     JSON.stringify({
+      version: "2026-03-19",
       gem: { filename: "bar-2.0.0.gem" },
       attestations: [
         {
@@ -354,6 +356,7 @@ describe("publish action", () => {
     fs.writeFileSync(
       path.join(downloadDir2, "index.json"),
       JSON.stringify({
+        version: "2026-03-19",
         gem: { filename: "foo-1.0.0.gem" },
         attestations: [
           {
@@ -387,6 +390,7 @@ describe("publish action", () => {
     fs.writeFileSync(
       path.join(downloadDir1, "index.json"),
       JSON.stringify({
+        version: "2026-03-19",
         gem: { filename: "foo-1.0.0.gem" },
         attestations: [
           {
@@ -404,6 +408,7 @@ describe("publish action", () => {
     fs.writeFileSync(
       path.join(downloadDir2, "index.json"),
       JSON.stringify({
+        version: "2026-03-19",
         gem: { filename: "bar-2.0.0.gem" },
         attestations: [
           {
@@ -428,6 +433,7 @@ describe("publish action", () => {
     fs.writeFileSync(
       path.join(downloadDir1, "index.json"),
       JSON.stringify({
+        version: "2026-03-19",
         gem: { filename: "foo-1.0.0.gem" },
         attestations: [
           {
@@ -446,6 +452,7 @@ describe("publish action", () => {
     fs.writeFileSync(
       path.join(downloadDir2, "index.json"),
       JSON.stringify({
+        version: "2026-03-19",
         gem: { filename: "bar-2.0.0.gem" },
         attestations: [
           {

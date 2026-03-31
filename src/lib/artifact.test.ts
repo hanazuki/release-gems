@@ -159,6 +159,7 @@ describe("downloadGemArtifacts", () => {
     fs.writeFileSync(
       path.join(dir, "index.json"),
       JSON.stringify({
+        version: "2026-03-19",
         gem: { filename: gemFilename },
         attestations: [
           {
@@ -260,5 +261,86 @@ describe("downloadGemArtifacts", () => {
 
     expect(result).toEqual([]);
     expect(mockDownloadArtifact).not.toHaveBeenCalled();
+  });
+
+  it("parses index.json with correct version without error", async () => {
+    const dir = makeArtifactDir("my-gem-1.0.0.gem");
+
+    mockListArtifacts.mockResolvedValue({
+      artifacts: [{ id: 1, name: "release-gems-my-gem-ruby" }],
+    });
+    mockDownloadArtifact.mockResolvedValue({ downloadPath: dir });
+
+    const result = await downloadGemArtifacts();
+
+    expect(result).toHaveLength(1);
+    expect(result[0].index.version).toBe("2026-03-19");
+  });
+
+  it("throws a friendly error when index.json has a wrong version string", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-gems-dl-test-"));
+    tempDirs.push(dir);
+    fs.writeFileSync(path.join(dir, "my-gem-1.0.0.gem"), "fake gem");
+    fs.writeFileSync(
+      path.join(dir, "index.json"),
+      JSON.stringify({
+        version: "2020-01-01",
+        gem: { filename: "my-gem-1.0.0.gem" },
+        attestations: [],
+      }),
+    );
+
+    mockListArtifacts.mockResolvedValue({
+      artifacts: [{ id: 1, name: "release-gems-my-gem-ruby" }],
+    });
+    mockDownloadArtifact.mockResolvedValue({ downloadPath: dir });
+
+    await expect(downloadGemArtifacts()).rejects.toThrow(
+      /Artifact schema mismatch/,
+    );
+  });
+
+  it("throws a friendly error when index.json has no version field", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-gems-dl-test-"));
+    tempDirs.push(dir);
+    fs.writeFileSync(path.join(dir, "my-gem-1.0.0.gem"), "fake gem");
+    fs.writeFileSync(
+      path.join(dir, "index.json"),
+      JSON.stringify({
+        gem: { filename: "my-gem-1.0.0.gem" },
+        attestations: [],
+      }),
+    );
+
+    mockListArtifacts.mockResolvedValue({
+      artifacts: [{ id: 1, name: "release-gems-my-gem-ruby" }],
+    });
+    mockDownloadArtifact.mockResolvedValue({ downloadPath: dir });
+
+    await expect(downloadGemArtifacts()).rejects.toThrow(
+      /Artifact schema mismatch/,
+    );
+  });
+
+  it("throws a friendly error when version is wrong even if other fields are also invalid", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "release-gems-dl-test-"));
+    tempDirs.push(dir);
+    fs.writeFileSync(
+      path.join(dir, "index.json"),
+      JSON.stringify({
+        version: "2020-01-01",
+        gem: { filename: "invalid/filename" },
+        attestations: "not-an-array",
+      }),
+    );
+
+    mockListArtifacts.mockResolvedValue({
+      artifacts: [{ id: 1, name: "release-gems-my-gem-ruby" }],
+    });
+    mockDownloadArtifact.mockResolvedValue({ downloadPath: dir });
+
+    await expect(downloadGemArtifacts()).rejects.toThrow(
+      /Artifact schema mismatch/,
+    );
   });
 });

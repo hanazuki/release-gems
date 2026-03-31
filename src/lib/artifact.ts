@@ -7,12 +7,16 @@ import * as z from "zod";
 import * as codec from "#/codec";
 import type { Gemspec } from "#/gem";
 
+// Update whenever making incompatible change to the semantics of the index.
+const ARTIFACT_VERSION = "2026-03-19";
+
 const FilenameSchema = z
   .string()
   .min(1)
   .regex(/^[^/]+$/, { message: "should not contain /" });
 
 const GemArtifactIndexSchema = z.object({
+  version: z.literal(ARTIFACT_VERSION),
   gem: z.object({
     filename: FilenameSchema,
   }),
@@ -28,6 +32,23 @@ const GemArtifactIndexJson = codec.json(GemArtifactIndexSchema);
 
 export type GemArtifactIndex = z.infer<typeof GemArtifactIndexSchema>;
 
+function parseGemArtifactIndex(json: string): GemArtifactIndex {
+  try {
+    return GemArtifactIndexJson.decode(json);
+  } catch (cause) {
+    if (
+      cause instanceof z.core.$ZodError &&
+      cause.issues.some((i) => i.path[0] === "version")
+    ) {
+      throw new Error(
+        "Artifact schema mismatch. Ensure the build and publish actions are pinned to the same release.",
+        { cause },
+      );
+    }
+    throw new Error("Failed to parse artifact index", { cause });
+  }
+}
+
 export async function uploadGemArtifact({
   gemspec,
   directory,
@@ -36,13 +57,16 @@ export async function uploadGemArtifact({
 }: {
   gemspec: Gemspec;
   directory: string;
-  index: GemArtifactIndex;
+  index: Omit<GemArtifactIndex, "version">;
   retentionDays?: number;
 }): Promise<void> {
   const artifactName = `release-gems-${gemspec.name}-${gemspec.platform}`;
   const indexPath = path.join(directory, "index.json");
 
-  await fs.promises.writeFile(indexPath, GemArtifactIndexJson.encode(index));
+  await fs.promises.writeFile(
+    indexPath,
+    GemArtifactIndexJson.encode({ version: ARTIFACT_VERSION, ...index }),
+  );
 
   await artifactClient.uploadArtifact(
     artifactName,
@@ -83,12 +107,10 @@ export async function downloadGemArtifacts(): Promise<
         },
       );
       if (downloadPath == null) throw new Error("Something went wrong");
-      const index = GemArtifactIndexSchema.parse(
-        GemArtifactIndexJson.decode(
-          await fs.promises.readFile(path.join(downloadPath, "index.json"), {
-            encoding: "utf8",
-          }),
-        ),
+      const index = parseGemArtifactIndex(
+        await fs.promises.readFile(path.join(downloadPath, "index.json"), {
+          encoding: "utf8",
+        }),
       );
 
       if (!fs.existsSync(path.join(downloadPath, index.gem.filename))) {

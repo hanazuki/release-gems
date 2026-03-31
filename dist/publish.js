@@ -27546,6 +27546,24 @@ const $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def) => {
 		return payload;
 	};
 });
+const $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
+	$ZodType.init(inst, def);
+	if (def.values.length === 0) throw new Error("Cannot create literal schema with no valid values");
+	const values = new Set(def.values);
+	inst._zod.values = values;
+	inst._zod.pattern = new RegExp(`^(${def.values.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$`);
+	inst._zod.parse = (payload, _ctx) => {
+		const input = payload.value;
+		if (values.has(input)) return payload;
+		payload.issues.push({
+			code: "invalid_value",
+			values: def.values,
+			input,
+			inst
+		});
+		return payload;
+	};
+});
 const $ZodTransform = /* @__PURE__ */ $constructor("$ZodTransform", (inst, def) => {
 	$ZodType.init(inst, def);
 	inst._zod.parse = (payload, ctx) => {
@@ -28758,6 +28776,27 @@ const enumProcessor = (schema, _ctx, json, _params) => {
 	if (values.every((v) => typeof v === "string")) json.type = "string";
 	json.enum = values;
 };
+const literalProcessor = (schema, ctx, json, _params) => {
+	const def = schema._zod.def;
+	const vals = [];
+	for (const val of def.values) if (val === void 0) {
+		if (ctx.unrepresentable === "throw") throw new Error("Literal `undefined` cannot be represented in JSON Schema");
+	} else if (typeof val === "bigint") if (ctx.unrepresentable === "throw") throw new Error("BigInt literals cannot be represented in JSON Schema");
+	else vals.push(Number(val));
+	else vals.push(val);
+	if (vals.length === 0) {} else if (vals.length === 1) {
+		const val = vals[0];
+		json.type = val === null ? "null" : typeof val;
+		if (ctx.target === "draft-04" || ctx.target === "openapi-3.0") json.enum = [val];
+		else json.const = val;
+	} else {
+		if (vals.every((v) => typeof v === "number")) json.type = "number";
+		if (vals.every((v) => typeof v === "string")) json.type = "string";
+		if (vals.every((v) => typeof v === "boolean")) json.type = "boolean";
+		if (vals.every((v) => v === null)) json.type = "null";
+		json.enum = vals;
+	}
+};
 const customProcessor = (_schema, ctx, _json, _params) => {
 	if (ctx.unrepresentable === "throw") throw new Error("Custom types cannot be represented in JSON Schema");
 };
@@ -29411,6 +29450,23 @@ function _enum(values, params) {
 	return new ZodEnum({
 		type: "enum",
 		entries: Array.isArray(values) ? Object.fromEntries(values.map((v) => [v, v])) : values,
+		...normalizeParams(params)
+	});
+}
+const ZodLiteral = /* @__PURE__ */ $constructor("ZodLiteral", (inst, def) => {
+	$ZodLiteral.init(inst, def);
+	ZodType.init(inst, def);
+	inst._zod.processJSONSchema = (ctx, json, params) => literalProcessor(inst, ctx, json, params);
+	inst.values = new Set(def.values);
+	Object.defineProperty(inst, "value", { get() {
+		if (def.values.length > 1) throw new Error("This schema contains multiple valid literal values. Use `.values` instead.");
+		return def.values[0];
+	} });
+});
+function literal(value, params) {
+	return new ZodLiteral({
+		type: "literal",
+		values: Array.isArray(value) ? value : [value],
 		...normalizeParams(params)
 	});
 }
@@ -97944,16 +98000,25 @@ codec(string().regex(integer), int$1(), {
 });
 //#endregion
 //#region src/lib/artifact.ts
+const ARTIFACT_VERSION = "2026-03-19";
 const FilenameSchema = string().min(1).regex(/^[^/]+$/, { message: "should not contain /" });
-const GemArtifactIndexSchema = object({
+const GemArtifactIndexJson = json(object({
+	version: literal(ARTIFACT_VERSION),
 	gem: object({ filename: FilenameSchema }),
 	attestations: array(object({
 		filename: FilenameSchema,
 		mediaType: string(),
 		sha256: string()
 	}))
-});
-const GemArtifactIndexJson = json(GemArtifactIndexSchema);
+}));
+function parseGemArtifactIndex(json) {
+	try {
+		return GemArtifactIndexJson.decode(json);
+	} catch (cause) {
+		if (cause instanceof $ZodError && cause.issues.some((i) => i.path[0] === "version")) throw new Error("Artifact schema mismatch. Ensure the build and publish actions are pinned to the same release.", { cause });
+		throw new Error("Failed to parse artifact index", { cause });
+	}
+}
 /**
 * Download all release-gems-* artifacts for the current workflow run.
 * Returns paths to directories containing the downloaded files.
@@ -97965,7 +98030,7 @@ async function downloadGemArtifacts() {
 	return Promise.all(gemArtifacts.map(async (artifact) => {
 		const { downloadPath } = await client.downloadArtifact(artifact.id, { path: node_path.join(node_os.tmpdir(), `release-gems-dl-${artifact.id}`) });
 		if (downloadPath == null) throw new Error("Something went wrong");
-		const index = GemArtifactIndexSchema.parse(GemArtifactIndexJson.decode(await node_fs.promises.readFile(node_path.join(downloadPath, "index.json"), { encoding: "utf8" })));
+		const index = parseGemArtifactIndex(await node_fs.promises.readFile(node_path.join(downloadPath, "index.json"), { encoding: "utf8" }));
 		if (!node_fs.existsSync(node_path.join(downloadPath, index.gem.filename))) throw new Error(`Gem '${index.gem.filename}' does not exist in the downloaded artifact archive #${artifact.id} '${artifact.name}'`);
 		for (const attestation of index.attestations) if (!node_fs.existsSync(node_path.join(downloadPath, attestation.filename))) throw new Error(`Attestation '${attestation.filename}' does not exist in the downloaded artifact archive #${artifact.id} '${artifact.name}'`);
 		return {
