@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.2.1 (2026-03-31)
+
 - Error reporting now surfaces the full error tree, including cause chains and `AggregateError` sub-errors.
 
 ## v1.2.0 (2026-03-30)
