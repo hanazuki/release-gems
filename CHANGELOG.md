@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Error reporting now surfaces the full error tree, including cause chains and `AggregateError` sub-errors.
+
 ## v1.2.0 (2026-03-30)
 
 - The `publish` action now warns when immutable releases are not enabled for the repository.

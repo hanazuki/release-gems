@@ -4,6 +4,7 @@ import * as github from "@actions/github";
 import * as z from "zod";
 import { downloadGemArtifacts, type GemArtifactIndex } from "#/artifact";
 import { loadConfig } from "#/config";
+import { formatError } from "#/error";
 import { getInputs } from "#/input";
 import { loadGemCredentials, pushToRegistry, RUBYGEMS_ORG } from "#/registry";
 import * as rel from "#/release";
@@ -176,7 +177,7 @@ async function run(): Promise<void> {
 }
 
 export const completed = run().catch((err) => {
-  core.setFailed(err instanceof Error ? err.message : String(err));
+  core.setFailed(formatError(err));
 });
 
 if (import.meta.vitest) {
