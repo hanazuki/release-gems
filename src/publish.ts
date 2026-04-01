@@ -189,6 +189,7 @@ if (import.meta.vitest) {
         {
           directory: "/dl/artifact-1",
           index: {
+            version: "2026-03-19" as const,
             gem: { filename: "foo-1.0.0-x86_64-linux.gem" },
             attestations: [
               {
@@ -203,6 +204,7 @@ if (import.meta.vitest) {
         {
           directory: "/dl/artifact-2",
           index: {
+            version: "2026-03-19" as const,
             gem: { filename: "foo-1.0.0-arm64-linux.gem" },
             attestations: [
               {
